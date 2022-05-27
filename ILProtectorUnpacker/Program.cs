@@ -208,7 +208,9 @@ namespace ILProtectorUnpacker
                 CurrentMethodBase = Assembly.ManifestModule.ResolveMethod(methodDef.MDToken.ToInt32());
 
                 var mdToken = ((IType) methodDef.Body.Instructions[3].Operand).MDToken.ToInt32();
-                JunkType.Add(methodDef.DeclaringType.NestedTypes.FirstOrDefault(net => net.MDToken.ToInt32() == mdToken));
+                var oldType = methodDef.DeclaringType.NestedTypes.FirstOrDefault(net => net.MDToken.ToInt32() == mdToken);
+                if (oldType != null)
+                    JunkType.Add(oldType);
                 var index = methodDef.Body.Instructions[1].GetLdcI4Value();
                 if (index == IgnoreIndex) continue;
 
