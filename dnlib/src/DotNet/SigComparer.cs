@@ -2385,6 +2385,8 @@ exit: ;
 				return true;
 			if (a == null || b == null)
 				return false;
+			if (a == FieldSig.ExternalTypeSig || b == FieldSig.ExternalTypeSig)
+				return true;
 			if (!recursionCounter.Increment())
 				return false;
 

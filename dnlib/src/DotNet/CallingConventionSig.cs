@@ -220,6 +220,11 @@ namespace dnlib.DotNet {
 
 		/// <inheritdoc/>
 		public override string ToString() => FullNameFactory.FullName(type, false, null, null, null, null);
+
+		/// <summary>
+		/// A sig used when can not import the type
+		/// </summary>
+		public static readonly FieldSig ExternalTypeSig = new FieldSig();
 	}
 
 	/// <summary>

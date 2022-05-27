@@ -86,6 +86,7 @@ namespace dnlib.DotNet {
 		readonly ImportMapper mapper;
 		RecursionCounter recursionCounter;
 		ImporterOptions options;
+		HashSet<FieldInfo> knownFailures;
 
 		bool TryToUseTypeDefs => (options & ImporterOptions.TryToUseTypeDefs) != 0;
 		bool TryToUseMethodDefs => (options & ImporterOptions.TryToUseMethodDefs) != 0;
@@ -150,6 +151,7 @@ namespace dnlib.DotNet {
 			this.options = options;
 			this.gpContext = gpContext;
 			this.mapper = mapper;
+			knownFailures = new HashSet<FieldInfo>();
 		}
 
 		/// <summary>
@@ -593,7 +595,20 @@ namespace dnlib.DotNet {
 			}
 
 			MemberRef fieldRef;
-			if (origField.FieldType.ContainsGenericParameters) {
+			bool hasOrigFieldType = false;
+			bool containsGenericParameters = false;
+			if (!knownFailures.Contains(origField)) {
+				try {
+					var origFieldType = origField.FieldType;
+					hasOrigFieldType = true;
+					containsGenericParameters = origFieldType.ContainsGenericParameters;
+				}
+				catch (System.IO.FileNotFoundException) {
+					knownFailures.Add(origField);
+					Console.Error.WriteLine($"Error: Can not resolve the field {parent.FullName}::{origField.Name} , so treat it as non-generic");
+				}
+			}
+			if (containsGenericParameters) {
 				var origDeclType = origField.DeclaringType;
 				var asm = module.Context.AssemblyResolver.Resolve(origDeclType.Module.Assembly.GetName(), module);
 				if (asm == null || asm.FullName != origDeclType.Assembly.FullName)
@@ -609,7 +624,9 @@ namespace dnlib.DotNet {
 				fieldRef = module.UpdateRowId(new MemberRefUser(module, fieldInfo.Name, fieldSig, parent));
 			}
 			else {
-				var fieldSig = new FieldSig(ImportAsTypeSig(fieldInfo.FieldType, fieldInfo.GetRequiredCustomModifiers(), fieldInfo.GetOptionalCustomModifiers()));
+				var fieldSig = hasOrigFieldType
+						? new FieldSig(ImportAsTypeSig(fieldInfo.FieldType, fieldInfo.GetRequiredCustomModifiers(), fieldInfo.GetOptionalCustomModifiers()))
+						: FieldSig.ExternalTypeSig;
 				fieldRef = module.UpdateRowId(new MemberRefUser(module, fieldInfo.Name, fieldSig, parent));
 			}
 			var field = TryResolveField(fieldRef);
