@@ -605,7 +605,7 @@ namespace dnlib.DotNet {
 				}
 				catch (System.IO.FileNotFoundException) {
 					knownFailures.Add(origField);
-					Console.Error.WriteLine($"Error: Can not resolve the field {parent.FullName}::{origField.Name} , so treat it as non-generic");
+					Console.Error.WriteLine($"[ERROR] Can not resolve the field {parent.FullName}::{origField.Name} , so treat it as non-generic");
 				}
 			}
 			if (containsGenericParameters) {
