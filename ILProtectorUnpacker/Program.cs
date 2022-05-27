@@ -1,4 +1,4 @@
-﻿#region using
+#region using
 
 using System;
 using System.Collections.Generic;
@@ -33,8 +33,8 @@ namespace ILProtectorUnpacker
             try
             {
                 if (args.Length == 2 && args[0] == "-i") IgnoreIndex = Convert.ToInt32(args[1]);
-                Console.BackgroundColor = ConsoleColor.White;
-                Console.ForegroundColor = ConsoleColor.Black;
+                //Console.BackgroundColor = ConsoleColor.White;
+                //Console.ForegroundColor = ConsoleColor.Black;
                 Console.WriteLine("*********************************");
                 Console.WriteLine("***                           ***");
                 Console.WriteLine("***    ILProtector Unpacker   ***");
@@ -82,7 +82,7 @@ namespace ILProtectorUnpacker
                     return;
                 }
 
-                Console.ForegroundColor = ConsoleColor.DarkRed;
+                Console.ForegroundColor = ConsoleColor.Red;
 
                 AssemblyWriter = new AssemblyWriter(path);
                 Assembly = Assembly.LoadFrom(path ?? throw new Exception("path is null"));
@@ -135,6 +135,7 @@ namespace ILProtectorUnpacker
                     Console.WriteLine("[!] Couldn't find InvokeMethod");
 
                 InvokeDelegates(list, method, fieldValue);
+                Console.ForegroundColor = ConsoleColor.Red;
 
                 new StringDecrypter(Assembly).ReplaceStrings(list);
 
@@ -156,7 +157,8 @@ namespace ILProtectorUnpacker
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[!] Exception :\n" + ex.StackTrace);
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"[!] Exception: {ex.Message}\n" + ex.StackTrace);
             }
 
             Console.WriteLine("[!] Press key to exit...");
@@ -170,11 +172,37 @@ namespace ILProtectorUnpacker
                 x.Body.Instructions.Count > 2 &&
                 x.Body.Instructions[0].OpCode == OpCodes.Ldsfld &&
                 x.Body.Instructions[0].Operand.ToString().Contains("Invoke") && 
-                x.Body.Instructions[1].IsLdcI4());
-
+                x.Body.Instructions[1].IsLdcI4()).ToArray();
+            var start = DateTime.Now;
+            var lastLog = -99;
+            var lastTotalPacked = 0;
+            Console.ForegroundColor = ConsoleColor.Gray;
+            Console.WriteLine($"[info] Found {methodDefs.Count()} packed methods");
             foreach (var methodDef in methodDefs)
             {
                 _totalPackedMethods++;
+                var now = DateTime.Now;
+                var timeDelta = now - start;
+                var seconds = timeDelta.TotalSeconds;
+                if (seconds < 0)
+                {
+                    start = now;
+                    lastLog = -99;
+                    timeDelta = now - start;
+                    seconds = 0;
+                }
+                if (seconds - lastLog >= 10)
+                {
+                    lastLog = (int)Math.Floor(seconds);
+                    if (_totalPackedMethods > 1)
+                    {
+                        timeDelta = new TimeSpan(0, 0, lastLog);
+                        lastTotalPacked = _totalPackedMethods;
+                        var msg = $"unpacked {_totalUnpackedMethods} in {_totalPackedMethods - 1}";
+                        Console.ForegroundColor = ConsoleColor.Gray;
+                        Console.WriteLine($"[{timeDelta:c}] {msg}");
+                    }
+                }
 
                 CurrentMethod = methodDef;
                 CurrentMethodBase = Assembly.ManifestModule.ResolveMethod(methodDef.MDToken.ToInt32());
@@ -185,6 +213,12 @@ namespace ILProtectorUnpacker
                 if (index == IgnoreIndex) continue;
 
                 var method = invokeMethod.Invoke(invokeField, new object[] {index});
+                if (method == null)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"Can not find the packed method body of #{index} {CurrentMethod.FullName}");
+                    continue;
+                }
 
                 try
                 {
@@ -196,12 +230,23 @@ namespace ILProtectorUnpacker
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("Error in Read(): " + ex.Message + "\nMethod : " + method);
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"[Error] #{_totalPackedMethods} in Read(): "
+                        + ex.Message + "\n- Method: " + method + "\n" + ex.StackTrace);
                 }
                 finally
                 {
                     CurrentMethod = null;
                 }
+            }
+            {
+                var msg = $"unpacked {_totalUnpackedMethods} in {_totalPackedMethods}";
+                var timeDelta = DateTime.Now - start;
+                var seconds = timeDelta.TotalSeconds;
+                lastLog = (int)Math.Floor(seconds);
+                timeDelta = new TimeSpan(0, 0, lastLog);
+                Console.ForegroundColor = ConsoleColor.Gray;
+                Console.WriteLine($"[{timeDelta:c}] {msg}");
             }
         }
 
