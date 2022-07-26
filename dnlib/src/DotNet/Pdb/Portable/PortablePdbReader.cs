@@ -1,4 +1,4 @@
-﻿// dnlib: See LICENSE.txt for more info
+// dnlib: See LICENSE.txt for more info
 
 // https://github.com/dotnet/corefx/blob/master/src/System.Reflection.Metadata/specs/PortablePdb-Metadata.md
 
@@ -54,7 +54,7 @@ namespace dnlib.DotNet.Pdb.Portable {
 		}
 
 		SymbolDocument[] ReadDocuments() {
-			Debug.Assert(module != null);
+			Debug.Assert(module is not null);
 			var docTbl = pdbMetadata.TablesStream.DocumentTable;
 			var docs = new SymbolDocument[docTbl.Rows];
 			var nameReader = new DocumentNameReader(pdbMetadata.BlobStream);
@@ -93,6 +93,8 @@ namespace dnlib.DotNet.Pdb.Portable {
 		}
 
 		public override SymbolMethod GetMethod(MethodDef method, int version) {
+			if (version != 1)
+				return null;
 			var mdTable = pdbMetadata.TablesStream.MethodDebugInformationTable;
 			uint methodRid = method.Rid;
 			if (!mdTable.IsValidRID(methodRid))
@@ -149,8 +151,8 @@ namespace dnlib.DotNet.Pdb.Portable {
 				else {
 					// SequencePointRecord
 
-					Debug.Assert(document != null);
-					if (document == null)
+					Debug.Assert(document is not null);
+					if (document is null)
 						return null;
 
 					var symSeqPoint = new SymbolSequencePoint {
@@ -231,39 +233,26 @@ namespace dnlib.DotNet.Pdb.Portable {
 						stack.RemoveAt(stack.Count - 1);
 					}
 
-					Debug.Assert(parent != null || rootScopeOrNull == null);
+					Debug.Assert(parent is not null || rootScopeOrNull is null);
 					custInfos.Clear();
 					GetCustomDebugInfos(token, gpContext, custInfos);
 					var customDebugInfos = custInfos.Count == 0 ? Array2.Empty<PdbCustomDebugInfo>() : custInfos.ToArray();
 					var scope = new SymbolScopeImpl(this, parent, (int)startOffset, (int)endOffset, customDebugInfos);
-					if (rootScopeOrNull == null)
+					if (rootScopeOrNull is null)
 						rootScopeOrNull = scope;
 					stack.Add(scope);
-					if (parent != null)
+					if (parent is not null)
 						parent.childrenList.Add(scope);
 
 					scope.importScope = ReadPdbImportScope(ref importScopeBlobReader, row.ImportScope, gpContext);
-					GetEndOfLists(rid, out uint variableListEnd, out uint constantListEnd);
-					ReadVariables(scope, gpContext, row.VariableList, variableListEnd);
-					ReadConstants(scope, row.ConstantList, constantListEnd);
+					ReadVariables(scope, gpContext, pdbMetadata.GetLocalVariableRidList(rid));
+					ReadConstants(scope, pdbMetadata.GetLocalConstantRidList(rid));
 				}
 
 				ListCache<SymbolScopeImpl>.Free(ref stack);
 				ListCache<PdbCustomDebugInfo>.Free(ref custInfos);
 			}
 			return rootScopeOrNull ?? new SymbolScopeImpl(this, null, 0, int.MaxValue, Array2.Empty<PdbCustomDebugInfo>());
-		}
-
-		void GetEndOfLists(uint scopeRid, out uint variableListEnd, out uint constantListEnd) {
-			var nextRid = scopeRid + 1;
-			if (!pdbMetadata.TablesStream.TryReadLocalScopeRow(nextRid, out var row)) {
-				variableListEnd = pdbMetadata.TablesStream.LocalVariableTable.Rows + 1;
-				constantListEnd = pdbMetadata.TablesStream.LocalConstantTable.Rows + 1;
-			}
-			else {
-				variableListEnd = row.VariableList;
-				constantListEnd = row.ConstantList;
-			}
 		}
 
 		PdbImportScope ReadPdbImportScope(ref ImportScopeBlobReader importScopeBlobReader, uint importScope, GenericParamContext gpContext) {
@@ -281,9 +270,9 @@ namespace dnlib.DotNet.Pdb.Portable {
 					return null;
 				var scope = new PdbImportScope();
 				GetCustomDebugInfos(token, gpContext, scope.CustomDebugInfos);
-				if (result == null)
+				if (result is null)
 					result = scope;
-				if (prevScope != null)
+				if (prevScope is not null)
 					prevScope.Parent = scope;
 				importScopeBlobReader.Read(row.Imports, scope.Imports);
 				prevScope = scope;
@@ -293,21 +282,13 @@ namespace dnlib.DotNet.Pdb.Portable {
 			return result;
 		}
 
-		void ReadVariables(SymbolScopeImpl scope, GenericParamContext gpContext, uint variableList, uint variableListEnd) {
-			if (variableList == 0)
-				return;
-			Debug.Assert(variableList <= variableListEnd);
-			if (variableList >= variableListEnd)
+		void ReadVariables(SymbolScopeImpl scope, GenericParamContext gpContext, RidList rids) {
+			if (rids.Count == 0)
 				return;
 			var table = pdbMetadata.TablesStream.LocalVariableTable;
-			Debug.Assert(table.IsValidRID(variableListEnd - 1));
-			if (!table.IsValidRID(variableListEnd - 1))
-				return;
-			Debug.Assert(table.IsValidRID(variableList));
-			if (!table.IsValidRID(variableList))
-				return;
 			var custInfos = ListCache<PdbCustomDebugInfo>.AllocList();
-			for (uint rid = variableList; rid < variableListEnd; rid++) {
+			for (int i = 0; i < rids.Count; i++) {
+				var rid = rids[i];
 				int token = new MDToken(Table.LocalVariable, rid).ToInt32();
 				custInfos.Clear();
 				GetCustomDebugInfos(token, gpContext, custInfos);
@@ -328,35 +309,25 @@ namespace dnlib.DotNet.Pdb.Portable {
 			return res;
 		}
 
-		void ReadConstants(SymbolScopeImpl scope, uint constantList, uint constantListEnd) {
-			if (constantList == 0)
+		void ReadConstants(SymbolScopeImpl scope, RidList rids) {
+			if (rids.Count == 0)
 				return;
-			Debug.Assert(constantList <= constantListEnd);
-			if (constantList >= constantListEnd)
-				return;
-			var table = pdbMetadata.TablesStream.LocalConstantTable;
-			Debug.Assert(table.IsValidRID(constantListEnd - 1));
-			if (!table.IsValidRID(constantListEnd - 1))
-				return;
-			Debug.Assert(table.IsValidRID(constantList));
-			if (!table.IsValidRID(constantList))
-				return;
-			scope.SetConstants(pdbMetadata, constantList, constantListEnd);
+			scope.SetConstants(pdbMetadata, rids);
 		}
 
 		internal void GetCustomDebugInfos(SymbolMethodImpl symMethod, MethodDef method, CilBody body, IList<PdbCustomDebugInfo> result) {
 			Debug.Assert(method.Module == module);
 			GetCustomDebugInfos(method.MDToken.ToInt32(), GenericParamContext.Create(method), result, method, body, out var asyncStepInfo);
-			if (asyncStepInfo != null) {
+			if (asyncStepInfo is not null) {
 				var asyncMethod = TryCreateAsyncMethod(module, symMethod.KickoffMethod, asyncStepInfo.AsyncStepInfos, asyncStepInfo.CatchHandler);
-				Debug.Assert(asyncMethod != null);
-				if (asyncMethod != null)
+				Debug.Assert(asyncMethod is not null);
+				if (asyncMethod is not null)
 					result.Add(asyncMethod);
 			}
 			else if (symMethod.KickoffMethod != 0) {
 				var iteratorMethod = TryCreateIteratorMethod(module, symMethod.KickoffMethod);
-				Debug.Assert(iteratorMethod != null);
-				if (iteratorMethod != null)
+				Debug.Assert(iteratorMethod is not null);
+				if (iteratorMethod is not null)
 					result.Add(iteratorMethod);
 			}
 		}
@@ -385,7 +356,7 @@ namespace dnlib.DotNet.Pdb.Portable {
 
 		public override void GetCustomDebugInfos(int token, GenericParamContext gpContext, IList<PdbCustomDebugInfo> result) {
 			GetCustomDebugInfos(token, gpContext, result, null, null, out var asyncStepInfo);
-			Debug.Assert(asyncStepInfo == null);
+			Debug.Assert(asyncStepInfo is null);
 		}
 
 		void GetCustomDebugInfos(int token, GenericParamContext gpContext, IList<PdbCustomDebugInfo> result, MethodDef methodOpt, CilBody bodyOpt, out PdbAsyncMethodSteppingInformationCustomDebugInfo asyncStepInfo) {
@@ -402,14 +373,14 @@ namespace dnlib.DotNet.Pdb.Portable {
 				var guid = pdbMetadata.GuidStream.Read(row.Kind);
 				if (!pdbMetadata.BlobStream.TryCreateReader(row.Value, out var reader))
 					continue;
-				Debug.Assert(guid != null);
-				if (guid == null)
+				Debug.Assert(guid is not null);
+				if (guid is null)
 					continue;
 				var cdi = PortablePdbCustomDebugInfoReader.Read(module, typeOpt, bodyOpt, gpContext, guid.Value, ref reader);
-				Debug.Assert(cdi != null);
-				if (cdi != null) {
+				Debug.Assert(cdi is not null);
+				if (cdi is not null) {
 					if (cdi is PdbAsyncMethodSteppingInformationCustomDebugInfo asyncStepInfoTmp) {
-						Debug.Assert(asyncStepInfo == null);
+						Debug.Assert(asyncStepInfo is null);
 						asyncStepInfo = asyncStepInfoTmp;
 					}
 					else

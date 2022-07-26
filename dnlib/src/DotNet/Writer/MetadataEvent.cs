@@ -1,4 +1,4 @@
-﻿// dnlib: See LICENSE.txt for more info
+// dnlib: See LICENSE.txt for more info
 
 namespace dnlib.DotNet.Writer {
 	/// <summary>
@@ -40,7 +40,7 @@ namespace dnlib.DotNet.Writer {
 
 		/// <summary>
 		/// Most of the tables that should be sorted have been sorted. The <c>CustomAttribute</c>
-		/// table is still unsorted since it's not been created yet.
+		/// table is still unsorted since it hasn't been created yet.
 		/// </summary>
 		MostTablesSorted,
 

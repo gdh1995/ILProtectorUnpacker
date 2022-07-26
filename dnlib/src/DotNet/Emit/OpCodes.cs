@@ -1,6 +1,6 @@
 // dnlib: See LICENSE.txt for more info
 
-﻿namespace dnlib.DotNet.Emit {
+namespace dnlib.DotNet.Emit {
 	/// <summary>
 	/// Contains all valid CIL opcodes
 	/// </summary>
@@ -240,7 +240,7 @@
 		public static readonly OpCode Constrained	= new OpCode("constrained.",	Code.Constrained, OperandType.InlineType, FlowControl.Meta, OpCodeType.Prefix, StackBehaviour.Push0, StackBehaviour.Pop0);
 		public static readonly OpCode Cpblk			= new OpCode("cpblk",			Code.Cpblk, OperandType.InlineNone, FlowControl.Next, OpCodeType.Primitive, StackBehaviour.Push0, StackBehaviour.Popi_popi_popi);
 		public static readonly OpCode Initblk		= new OpCode("initblk",			Code.Initblk, OperandType.InlineNone, FlowControl.Next, OpCodeType.Primitive, StackBehaviour.Push0, StackBehaviour.Popi_popi_popi);
-//		public static readonly OpCode No			= new OpCode("no.",				Code.No, OperandType.ShortInlineI, FlowControl.Meta, OpCodeType.Prefix, StackBehaviour.Push0, StackBehaviour.Pop0);
+		public static readonly OpCode No			= new OpCode("no.",				Code.No, OperandType.ShortInlineI, FlowControl.Meta, OpCodeType.Prefix, StackBehaviour.Push0, StackBehaviour.Pop0);
 		public static readonly OpCode Rethrow		= new OpCode("rethrow",			Code.Rethrow, OperandType.InlineNone, FlowControl.Throw, OpCodeType.Objmodel, StackBehaviour.Push0, StackBehaviour.Pop0);
 		public static readonly OpCode Sizeof		= new OpCode("sizeof",			Code.Sizeof, OperandType.InlineType, FlowControl.Next, OpCodeType.Primitive, StackBehaviour.Pushi, StackBehaviour.Pop0);
 		public static readonly OpCode Refanytype	= new OpCode("refanytype",		Code.Refanytype, OperandType.InlineNone, FlowControl.Next, OpCodeType.Primitive, StackBehaviour.Pushi, StackBehaviour.Pop1);
@@ -251,11 +251,11 @@
 			// The OpCode ctor copies itself to one of these arrays. Whatever are still null
 			// are unsupported opcodes. Set them all to UNKNOWN1 or UNKNOWN2.
 			for (int i = 0; i < OneByteOpCodes.Length; i++) {
-				if (OneByteOpCodes[i] == null)
+				if (OneByteOpCodes[i] is null)
 					OneByteOpCodes[i] = UNKNOWN1;
 			}
 			for (int i = 0; i < TwoByteOpCodes.Length; i++) {
-				if (TwoByteOpCodes[i] == null)
+				if (TwoByteOpCodes[i] is null)
 					TwoByteOpCodes[i] = UNKNOWN2;
 			}
 		}

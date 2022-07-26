@@ -1,8 +1,6 @@
-﻿using System;
+using System;
 using System.IO;
 using dnlib.DotNet;
-using dnlib.PE;
-using dnlib.IO;
 
 namespace dnlib.Examples {
 	/// <summary>

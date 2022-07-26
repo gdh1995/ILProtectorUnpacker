@@ -1,4 +1,4 @@
-﻿// dnlib: See LICENSE.txt for more info
+// dnlib: See LICENSE.txt for more info
 
 using System;
 using System.Collections.Generic;
@@ -246,10 +246,10 @@ namespace dnlib.DotNet.Resources {
 
 		string GetRealTypeFullName(string fullName) {
 			var tr = TypeNameParser.ParseReflection(module, fullName, null);
-			if (tr == null)
+			if (tr is null)
 				return fullName;
 			var asmRef = tr.DefinitionAssembly;
-			if (asmRef == null)
+			if (asmRef is null)
 				return fullName;
 
 			var newFullName = fullName;
@@ -273,9 +273,9 @@ namespace dnlib.DotNet.Resources {
 			if (simpleName == module.CorLibTypes.AssemblyRef.Name)
 				return module.CorLibTypes.AssemblyRef.FullName;
 
-			if (moduleMD != null) {
+			if (moduleMD is not null) {
 				var asmRef = moduleMD.GetAssemblyRef(simpleName);
-				if (asmRef != null)
+				if (asmRef is not null)
 					return asmRef.FullName;
 			}
 

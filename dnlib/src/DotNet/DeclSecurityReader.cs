@@ -1,4 +1,4 @@
-﻿// dnlib: See LICENSE.txt for more info
+// dnlib: See LICENSE.txt for more info
 
 using System;
 using System.Collections.Generic;
@@ -89,7 +89,7 @@ namespace dnlib.DotNet {
 		}
 
 		/// <summary>
-		/// Reads the new (.NET 2.0+) DeclSecurity blob format
+		/// Reads the new (.NET Framework 2.0+) DeclSecurity blob format
 		/// </summary>
 		/// <returns></returns>
 		IList<SecurityAttribute> ReadBinaryFormat() {
@@ -103,7 +103,7 @@ namespace dnlib.DotNet {
 				/*int blobLength = (int)*/reader.ReadCompressedUInt32();
 				int numNamedArgs = (int)reader.ReadCompressedUInt32();
 				var namedArgs = CustomAttributeReader.ReadNamedArguments(module, ref reader, numNamedArgs, gpContext);
-				if (namedArgs == null)
+				if (namedArgs is null)
 					throw new ApplicationException("Could not read named arguments");
 				list.Add(new SecurityAttribute(attrRef, namedArgs));
 			}
@@ -112,7 +112,7 @@ namespace dnlib.DotNet {
 		}
 
 		/// <summary>
-		/// Reads the old (.NET 1.x) DeclSecurity blob format
+		/// Reads the old (.NET Framework 1.x) DeclSecurity blob format
 		/// </summary>
 		/// <returns></returns>
 		IList<SecurityAttribute> ReadXmlFormat() {

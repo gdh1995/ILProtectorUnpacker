@@ -139,7 +139,7 @@ namespace dnlib.DotNet {
 		/// </summary>
 		public CustomAttributeCollection CustomAttributes {
 			get {
-				if (customAttributes == null)
+				if (customAttributes is null)
 					InitializeCustomAttributes();
 				return customAttributes;
 			}
@@ -161,7 +161,7 @@ namespace dnlib.DotNet {
 		/// </summary>
 		public IList<PdbCustomDebugInfo> CustomDebugInfos {
 			get {
-				if (customDebugInfos == null)
+				if (customDebugInfos is null)
 					InitializeCustomDebugInfos();
 				return customDebugInfos;
 			}
@@ -188,7 +188,7 @@ namespace dnlib.DotNet {
 		/// </summary>
 		public IList<TypeDef> Types {
 			get {
-				if (types == null)
+				if (types is null)
 					InitializeTypes();
 				return types;
 			}
@@ -204,7 +204,7 @@ namespace dnlib.DotNet {
 		/// </summary>
 		public IList<ExportedType> ExportedTypes {
 			get {
-				if (exportedTypes == null)
+				if (exportedTypes is null)
 					InitializeExportedTypes();
 				return exportedTypes;
 			}
@@ -305,19 +305,19 @@ namespace dnlib.DotNet {
 		/// <summary>
 		/// <c>true</c> if <see cref="ManagedEntryPoint"/> is non-null
 		/// </summary>
-		public bool IsManagedEntryPointValid => ManagedEntryPoint != null;
+		public bool IsManagedEntryPointValid => ManagedEntryPoint is not null;
 
 		/// <summary>
 		/// <c>true</c> if <see cref="EntryPoint"/> is non-null
 		/// </summary>
-		public bool IsEntryPointValid => EntryPoint != null;
+		public bool IsEntryPointValid => EntryPoint is not null;
 
 		/// <summary>
 		/// Gets a list of all <see cref="Resource"/>s
 		/// </summary>
 		public ResourceCollection Resources {
 			get {
-				if (resources == null)
+				if (resources is null)
 					InitializeResources();
 				return resources;
 			}
@@ -408,7 +408,7 @@ namespace dnlib.DotNet {
 		/// </summary>
 		TypeDefFinder TypeDefFinder {
 			get {
-				if (typeDefFinder == null)
+				if (typeDefFinder is null)
 					Interlocked.CompareExchange(ref typeDefFinder, new TypeDefFinder(Types), null);
 				return typeDefFinder;
 			}
@@ -419,7 +419,7 @@ namespace dnlib.DotNet {
 		/// </summary>
 		public ModuleContext Context {
 			get {
-				if (context == null)
+				if (context is null)
 					Interlocked.CompareExchange(ref context, new ModuleContext(), null);
 				return context;
 			}
@@ -449,7 +449,7 @@ namespace dnlib.DotNet {
 		public bool IsManifestModule {
 			get {
 				var asm = assembly;
-				return asm != null && asm.ManifestModule == this;
+				return asm is not null && asm.ManifestModule == this;
 			}
 		}
 
@@ -551,7 +551,7 @@ namespace dnlib.DotNet {
 		public WinMDStatus WinMDStatus {
 			get {
 				var cval = cachedWinMDStatus;
-				if (cval != null)
+				if (cval is not null)
 					return cval.Value;
 				cachedWinMDStatus = cval = CalculateWinMDStatus(RuntimeVersion);
 				return cval.Value;
@@ -582,7 +582,7 @@ namespace dnlib.DotNet {
 		public string RuntimeVersionWinMD {
 			get {
 				var rtver = runtimeVersionWinMD;
-				if (rtver != null)
+				if (rtver is not null)
 					return rtver;
 				runtimeVersionWinMD = rtver = CalculateRuntimeVersionWinMD(RuntimeVersion);
 				return rtver;
@@ -597,7 +597,7 @@ namespace dnlib.DotNet {
 		public string WinMDVersion {
 			get {
 				var ver = winMDVersion;
-				if (ver != null)
+				if (ver is not null)
 					return ver;
 				winMDVersion = ver = CalculateWinMDVersion(RuntimeVersion);
 				return ver;
@@ -606,7 +606,7 @@ namespace dnlib.DotNet {
 		string winMDVersion;
 
 		static WinMDStatus CalculateWinMDStatus(string version) {
-			if (version == null)
+			if (version is null)
 				return WinMDStatus.None;
 			if (!version.StartsWith("WindowsRuntime ", StringComparison.Ordinal))
 				return WinMDStatus.None;
@@ -618,7 +618,7 @@ namespace dnlib.DotNet {
 			// Original parser code:
 			// CoreCLR file: src/md/winmd/adapter.cpp
 			// Func: WinMDAdapter::Create(IMDCommon *pRawMDCommon, /*[out]*/ WinMDAdapter **ppAdapter)
-			if (version == null)
+			if (version is null)
 				return null;
 			if (!version.StartsWith("WindowsRuntime ", StringComparison.Ordinal))
 				return null;
@@ -634,7 +634,7 @@ namespace dnlib.DotNet {
 		}
 
 		static string CalculateWinMDVersion(string version) {
-			if (version == null)
+			if (version is null)
 				return null;
 			if (!version.StartsWith("WindowsRuntime ", StringComparison.Ordinal))
 				return null;
@@ -752,6 +752,11 @@ namespace dnlib.DotNet {
 		public bool IsARM64 => Machine.IsARM64();
 
 		/// <summary>
+		/// <c>true</c> if <see cref="Machine"/> is s390x, <see cref="PE.Machine.S390X_Native_Apple"/>, ...
+		/// </summary>
+		public bool IsS390x => Machine.IsS390x();
+
+		/// <summary>
 		/// Gets/sets the <see cref="Cor20HeaderFlags"/> (from .NET header)
 		/// </summary>
 		public ComImageFlags Cor20HeaderFlags {
@@ -764,7 +769,7 @@ namespace dnlib.DotNet {
 		/// <summary>
 		/// Gets/sets the runtime version number in the COR20 header. The major version is
 		/// in the high 16 bits. The minor version is in the low 16 bits. This is normally 2.5
-		/// (0x00020005), but if it's .NET 1.x, it should be 2.0 (0x00020000). If this is
+		/// (0x00020005), but if it's .NET Framework 1.x, it should be 2.0 (0x00020000). If this is
 		/// <c>null</c>, the default value will be used when saving the module (2.0 if CLR 1.x,
 		/// and 2.5 if not CLR 1.x).
 		/// </summary>
@@ -772,12 +777,12 @@ namespace dnlib.DotNet {
 
 		/// <summary>
 		/// Gets the tables header version. The major version is in the upper 8 bits and the
-		/// minor version is in the lower 8 bits. .NET 1.0/1.1 use version 1.0 (0x0100) and
-		/// .NET 2.x and later use version 2.0 (0x0200). 1.0 has no support for generics,
+		/// minor version is in the lower 8 bits. .NET Framework 1.0/1.1 use version 1.0 (0x0100) and
+		/// .NET Framework 2.x and later use version 2.0 (0x0200). 1.0 has no support for generics,
 		/// 1.1 has support for generics (GenericParam rows have an extra Kind column),
 		/// and 2.0 has support for generics (GenericParam rows have the standard 4 columns).
 		/// No other version is supported. If this is <c>null</c>, the default version is
-		/// used (1.0 if .NET 1.x, else 2.0).
+		/// used (1.0 if .NET Framework 1.x, else 2.0).
 		/// </summary>
 		public ushort? TablesHeaderVersion { get; set; }
 
@@ -859,7 +864,7 @@ namespace dnlib.DotNet {
 			if (!disposing)
 				return;
 			var tdf = typeDefFinder;
-			if (tdf != null) {
+			if (tdf is not null) {
 				tdf.Dispose();
 				typeDefFinder = null;
 			}
@@ -878,7 +883,7 @@ namespace dnlib.DotNet {
 		/// </summary>
 		/// <param name="typeDef">The <see cref="TypeDef"/> to insert</param>
 		public void AddAsNonNestedType(TypeDef typeDef) {
-			if (typeDef == null)
+			if (typeDef is null)
 				return;
 			typeDef.DeclaringType = null;
 			Types.Add(typeDef);
@@ -1083,16 +1088,16 @@ namespace dnlib.DotNet {
 		/// </summary>
 		/// <param name="pdbState">New <see cref="dnlib.DotNet.Pdb.PdbState"/></param>
 		public void SetPdbState(PdbState pdbState) {
-			if (pdbState == null)
+			if (pdbState is null)
 				throw new ArgumentNullException(nameof(pdbState));
 			var orig = Interlocked.CompareExchange(ref this.pdbState, pdbState, null);
-			if (orig != null)
+			if (orig is not null)
 				throw new InvalidOperationException("PDB file has already been initialized");
 		}
 
 		uint GetCor20RuntimeVersion() {
 			var rtVer = Cor20HeaderRuntimeVersion;
-			if (rtVer != null)
+			if (rtVer is not null)
 				return rtVer.Value;
 			return IsClr1x ? 0x00020000U : 0x00020005;
 		}
@@ -1137,7 +1142,7 @@ namespace dnlib.DotNet {
 			if ((flags & ComImageFlags.ILOnly) == 0)
 				return 4;
 
-			// 32-bit Preferred flag is new in .NET 4.5. See CorHdr.h in Windows SDK for more info
+			// 32-bit Preferred flag is new in .NET Framework 4.5. See CorHdr.h in Windows SDK for more info
 			switch (flags & (ComImageFlags.Bit32Required | ComImageFlags.Bit32Preferred)) {
 			case 0:
 				// Machine and ILOnly flag should be checked
@@ -1162,17 +1167,17 @@ namespace dnlib.DotNet {
 		/// <inheritdoc/>
 		void IListListener<TypeDef>.OnLazyAdd(int index, ref TypeDef value) {
 #if DEBUG
-			if (value.DeclaringType != null)
-				throw new InvalidOperationException("Added type's DeclaringType != null");
+			if (value.DeclaringType is not null)
+				throw new InvalidOperationException("Added type's DeclaringType is not null");
 #endif
 			value.Module2 = this;
 		}
 
 		/// <inheritdoc/>
 		void IListListener<TypeDef>.OnAdd(int index, TypeDef value) {
-			if (value.DeclaringType != null)
+			if (value.DeclaringType is not null)
 				throw new InvalidOperationException("Nested type is already owned by another type. Set DeclaringType to null first.");
-			if (value.Module != null)
+			if (value.Module is not null)
 				throw new InvalidOperationException("Type is already owned by another module. Remove it from that module's type list.");
 			value.Module2 = this;
 		}
@@ -1223,18 +1228,18 @@ namespace dnlib.DotNet {
 				return Find(tr);
 
 			var ts = typeRef as TypeSpec;
-			if (ts == null)
+			if (ts is null)
 				return null;
 			var sig = ts.TypeSig as TypeDefOrRefSig;
-			if (sig == null)
+			if (sig is null)
 				return null;
 
 			td = sig.TypeDef;
-			if (td != null)
+			if (td is not null)
 				return td.Module == this ? td : null;
 
 			tr = sig.TypeRef;
-			if (tr != null)
+			if (tr is not null)
 				return Find(tr);
 
 			return null;
@@ -1251,6 +1256,7 @@ namespace dnlib.DotNet {
 			var res = new Resolver(asmRes);
 			ctx.AssemblyResolver = asmRes;
 			ctx.Resolver = res;
+			asmRes.DefaultModuleContext = ctx;
 			return ctx;
 		}
 
@@ -1315,7 +1321,7 @@ namespace dnlib.DotNet {
 		public IEnumerable<AssemblyRef> GetAssemblyRefs() {
 			for (uint rid = 1; ; rid++) {
 				var asmRef = ResolveToken(new MDToken(Table.AssemblyRef, rid).Raw) as AssemblyRef;
-				if (asmRef == null)
+				if (asmRef is null)
 					break;
 				yield return asmRef;
 			}
@@ -1327,7 +1333,7 @@ namespace dnlib.DotNet {
 		public IEnumerable<ModuleRef> GetModuleRefs() {
 			for (uint rid = 1; ; rid++) {
 				var modRef = ResolveToken(new MDToken(Table.ModuleRef, rid).Raw) as ModuleRef;
-				if (modRef == null)
+				if (modRef is null)
 					break;
 				yield return modRef;
 			}
@@ -1347,7 +1353,7 @@ namespace dnlib.DotNet {
 		public IEnumerable<MemberRef> GetMemberRefs(GenericParamContext gpContext) {
 			for (uint rid = 1; ; rid++) {
 				var mr = ResolveToken(new MDToken(Table.MemberRef, rid).Raw, gpContext) as MemberRef;
-				if (mr == null)
+				if (mr is null)
 					break;
 				yield return mr;
 			}
@@ -1359,7 +1365,7 @@ namespace dnlib.DotNet {
 		public IEnumerable<TypeRef> GetTypeRefs() {
 			for (uint rid = 1; ; rid++) {
 				var mr = ResolveToken(new MDToken(Table.TypeRef, rid).Raw) as TypeRef;
-				if (mr == null)
+				if (mr is null)
 					break;
 				yield return mr;
 			}
@@ -1390,11 +1396,11 @@ namespace dnlib.DotNet {
 		/// <param name="newOne">New asm ref</param>
 		/// <returns></returns>
 		protected static bool IsGreaterAssemblyRefVersion(AssemblyRef found, AssemblyRef newOne) {
-			if (found == null)
+			if (found is null)
 				return true;
 			var foundVer = found.Version;
 			var newVer = newOne.Version;
-			return foundVer == null || (newVer != null && newVer >= foundVer);
+			return foundVer is null || (newVer is not null && newVer >= foundVer);
 		}
 
 		ITypeDefOrRef ISignatureReaderHelper.ResolveTypeDefOrRef(uint codedToken, GenericParamContext gpContext) {
@@ -1448,8 +1454,8 @@ namespace dnlib.DotNet {
 			RuntimeVersion = MDHeaderRuntimeVersion.MS_CLR_20;
 			Machine = Machine.I386;
 			cor20HeaderFlags = (int)ComImageFlags.ILOnly;
-			Cor20HeaderRuntimeVersion = 0x00020005;	// .NET 2.0 or later should use 2.5
-			TablesHeaderVersion = 0x0200;			// .NET 2.0 or later should use 2.0
+			Cor20HeaderRuntimeVersion = 0x00020005;	// .NET Framework 2.0 or later should use 2.5
+			TablesHeaderVersion = 0x0200;			// .NET Framework 2.0 or later should use 2.0
 			types = new LazyList<TypeDef>(this);
 			exportedTypes = new LazyList<ExportedType>();
 			resources = new ResourceCollection();
@@ -1508,10 +1514,10 @@ namespace dnlib.DotNet {
 		/// <exception cref="ArgumentNullException">If <paramref name="readerModule"/> is <c>null</c></exception>
 		/// <exception cref="ArgumentException">If <paramref name="rid"/> is invalid</exception>
 		internal ModuleDefMD2(ModuleDefMD readerModule, uint rid) {
-			if (rid == 1 && readerModule == null)
+			if (rid == 1 && readerModule is null)
 				readerModule = (ModuleDefMD)this;
 #if DEBUG
-			if (readerModule == null)
+			if (readerModule is null)
 				throw new ArgumentNullException("readerModule");
 			if (rid != 1 && readerModule.TablesStream.ModuleTable.IsInvalidRID(rid))
 				throw new BadImageFormatException($"Module rid {rid} does not exist");
@@ -1526,8 +1532,8 @@ namespace dnlib.DotNet {
 				RuntimeVersion = MDHeaderRuntimeVersion.MS_CLR_20;
 				Machine = Machine.I386;
 				cor20HeaderFlags = (int)ComImageFlags.ILOnly;
-				Cor20HeaderRuntimeVersion = 0x00020005;	// .NET 2.0 or later should use 2.5
-				TablesHeaderVersion = 0x0200;			// .NET 2.0 or later should use 2.0
+				Cor20HeaderRuntimeVersion = 0x00020005;	// .NET Framework 2.0 or later should use 2.5
+				TablesHeaderVersion = 0x0200;			// .NET Framework 2.0 or later should use 2.0
 				corLibTypes = new CorLibTypes(this);
 				location = string.Empty;
 				InitializeFromRawRow();

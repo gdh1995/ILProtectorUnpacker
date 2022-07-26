@@ -220,11 +220,6 @@ namespace dnlib.DotNet {
 
 		/// <inheritdoc/>
 		public override string ToString() => FullNameFactory.FullName(type, false, null, null, null, null);
-
-		/// <summary>
-		/// A sig used when can not import the type
-		/// </summary>
-		public static readonly FieldSig ExternalTypeSig = new FieldSig();
 	}
 
 	/// <summary>
@@ -576,7 +571,7 @@ namespace dnlib.DotNet {
 			this.genParamCount = genParamCount;
 			this.retType = retType;
 			parameters = new List<TypeSig>(argTypes);
-			this.paramsAfterSentinel = paramsAfterSentinel == null ? null : new List<TypeSig>(paramsAfterSentinel);
+			this.paramsAfterSentinel = paramsAfterSentinel is null ? null : new List<TypeSig>(paramsAfterSentinel);
 		}
 
 		/// <summary>
@@ -767,7 +762,7 @@ namespace dnlib.DotNet {
 			this.genParamCount = genParamCount;
 			this.retType = retType;
 			parameters = new List<TypeSig>(argTypes);
-			this.paramsAfterSentinel = paramsAfterSentinel == null ? null : new List<TypeSig>(paramsAfterSentinel);
+			this.paramsAfterSentinel = paramsAfterSentinel is null ? null : new List<TypeSig>(paramsAfterSentinel);
 		}
 
 		/// <summary>

@@ -1,6 +1,6 @@
 // dnlib: See LICENSE.txt for more info
 
-﻿using System;
+using System;
 
 namespace dnlib.DotNet.MD {
 	/// <summary>
@@ -64,8 +64,8 @@ namespace dnlib.DotNet.MD {
 		});
 
 		/// <summary>CustomAttributeType coded token</summary>
-		public static readonly CodedToken CustomAttributeType = new CodedToken(3, new Table[4] {
-			0, 0, Table.Method, Table.MemberRef,
+		public static readonly CodedToken CustomAttributeType = new CodedToken(3, new Table[5] {
+			0, 0, Table.Method, Table.MemberRef, 0,
 		});
 
 		/// <summary>ResolutionScope coded token</summary>

@@ -1,7 +1,8 @@
-﻿// dnlib: See LICENSE.txt for more info
+// dnlib: See LICENSE.txt for more info
 
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace dnlib.IO {
 	static class DataReaderFactoryFactory {
@@ -12,11 +13,15 @@ namespace dnlib.IO {
 			int p = (int)Environment.OSVersion.Platform;
 			if (p == 4 || p == 6 || p == 128)
 				isUnix = true;
+#if NETSTANDARD
+			if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+				isUnix = true;
+#endif
 		}
 
 		public static DataReaderFactory Create(string fileName, bool mapAsImage) {
 			var creator = CreateDataReaderFactory(fileName, mapAsImage);
-			if (creator != null)
+			if (creator is not null)
 				return creator;
 
 			return ByteArrayDataReaderFactory.Create(File.ReadAllBytes(fileName), fileName);

@@ -1,6 +1,6 @@
 // dnlib: See LICENSE.txt for more info
 
-﻿namespace dnlib.DotNet {
+namespace dnlib.DotNet {
 	/// <summary>
 	/// Resolves types, methods, fields
 	/// </summary>
@@ -61,7 +61,7 @@
 		/// <exception cref="TypeResolveException">If the type couldn't be resolved</exception>
 		public static TypeDef ResolveThrow(this ITypeResolver self, TypeRef typeRef, ModuleDef sourceModule) {
 			var type = self.Resolve(typeRef, sourceModule);
-			if (type != null)
+			if (type is not null)
 				return type;
 			throw new TypeResolveException($"Could not resolve type: {typeRef} ({typeRef?.DefinitionAssembly})");
 		}
@@ -75,7 +75,7 @@
 		/// <exception cref="MemberRefResolveException">If the method/field couldn't be resolved</exception>
 		public static IMemberForwarded ResolveThrow(this IMemberRefResolver self, MemberRef memberRef) {
 			var memberDef = self.Resolve(memberRef);
-			if (memberDef != null)
+			if (memberDef is not null)
 				return memberDef;
 			throw new MemberRefResolveException($"Could not resolve method/field: {memberRef} ({memberRef?.GetDefinitionAssembly()})");
 		}

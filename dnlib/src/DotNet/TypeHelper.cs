@@ -1,4 +1,4 @@
-﻿// dnlib: See LICENSE.txt for more info
+// dnlib: See LICENSE.txt for more info
 
 using System.Collections.Generic;
 
@@ -9,21 +9,14 @@ namespace dnlib.DotNet {
 	struct TypeHelper {
 		RecursionCounter recursionCounter;
 
-		internal static bool ContainsGenericParameter(StandAloneSig ss) => ss != null && TypeHelper.ContainsGenericParameter(ss.Signature);
-		internal static bool ContainsGenericParameter(InterfaceImpl ii) => ii != null && TypeHelper.ContainsGenericParameter(ii.Interface);
-		internal static bool ContainsGenericParameter(GenericParamConstraint gpc) => gpc != null && ContainsGenericParameter(gpc.Constraint);
+		internal static bool ContainsGenericParameter(StandAloneSig ss) => ss is not null && TypeHelper.ContainsGenericParameter(ss.Signature);
+		internal static bool ContainsGenericParameter(InterfaceImpl ii) => ii is not null && TypeHelper.ContainsGenericParameter(ii.Interface);
+		internal static bool ContainsGenericParameter(GenericParamConstraint gpc) => gpc is not null && ContainsGenericParameter(gpc.Constraint);
 
-		internal static bool ContainsGenericParameter(MethodSpec ms) {
-			if (ms == null)
-				return false;
-
-			// A normal MethodSpec should always contain generic arguments and thus
-			// its MethodDef is always a generic method with generic parameters.
-			return true;
-		}
+		internal static bool ContainsGenericParameter(MethodSpec ms) => ms is not null && ContainsGenericParameter(ms.GenericInstMethodSig);
 
 		internal static bool ContainsGenericParameter(MemberRef mr) {
-			if (mr == null)
+			if (mr is null)
 				return false;
 
 			if (ContainsGenericParameter(mr.Signature))
@@ -175,7 +168,7 @@ namespace dnlib.DotNet {
 		bool ContainsGenericParameterInternal(TypeRef type) => false;
 
 		bool ContainsGenericParameterInternal(TypeSpec type) {
-			if (type == null)
+			if (type is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -187,14 +180,14 @@ namespace dnlib.DotNet {
 		}
 
 		bool ContainsGenericParameterInternal(ITypeDefOrRef tdr) {
-			if (tdr == null)
+			if (tdr is null)
 				return false;
 			// TypeDef and TypeRef contain no generic parameters
 			return ContainsGenericParameterInternal(tdr as TypeSpec);
 		}
 
 		bool ContainsGenericParameterInternal(TypeSig type) {
-			if (type == null)
+			if (type is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -255,7 +248,6 @@ namespace dnlib.DotNet {
 					ContainsGenericParameterInternal((type as NonLeafSig).Next);
 				break;
 
-
 			case ElementType.End:
 			case ElementType.R:
 			case ElementType.Internal:
@@ -288,7 +280,7 @@ namespace dnlib.DotNet {
 		}
 
 		bool ContainsGenericParameterInternal(FieldSig fs) {
-			if (fs == null)
+			if (fs is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -300,7 +292,7 @@ namespace dnlib.DotNet {
 		}
 
 		bool ContainsGenericParameterInternal(MethodBaseSig mbs) {
-			if (mbs == null)
+			if (mbs is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -314,7 +306,7 @@ namespace dnlib.DotNet {
 		}
 
 		bool ContainsGenericParameterInternal(LocalSig ls) {
-			if (ls == null)
+			if (ls is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -326,7 +318,7 @@ namespace dnlib.DotNet {
 		}
 
 		bool ContainsGenericParameterInternal(GenericInstMethodSig gim) {
-			if (gim == null)
+			if (gim is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -338,7 +330,7 @@ namespace dnlib.DotNet {
 		}
 
 		bool ContainsGenericParameter(IList<TypeSig> types) {
-			if (types == null)
+			if (types is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;

@@ -1,6 +1,6 @@
 // dnlib: See LICENSE.txt for more info
 
-﻿namespace dnlib.DotNet {
+namespace dnlib.DotNet {
 	/// <summary>
 	/// Represents a public key token
 	/// </summary>
@@ -30,7 +30,7 @@
 			if ((object)this == obj)
 				return true;
 			var other = obj as PublicKeyToken;
-			if (other == null)
+			if (other is null)
 				return false;
 			return Utils.Equals(Data, other.Data);
 		}

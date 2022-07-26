@@ -1,4 +1,4 @@
-﻿// dnlib: See LICENSE.txt for more info
+// dnlib: See LICENSE.txt for more info
 
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -102,7 +102,7 @@ namespace dnlib.DotNet.Pdb.Portable {
 					import = null;
 					break;
 				}
-				if (import != null)
+				if (import is not null)
 					result.Add(import);
 			}
 			Debug.Assert(reader.Position == reader.Length);
@@ -114,13 +114,13 @@ namespace dnlib.DotNet.Pdb.Portable {
 			if (!b)
 				return null;
 			var type = module.ResolveToken(token) as ITypeDefOrRef;
-			Debug.Assert(type != null);
+			Debug.Assert(type is not null);
 			return type;
 		}
 
 		AssemblyRef TryReadAssemblyRef(uint rid) {
 			var asmRef = module.ResolveToken(0x23000000 + rid) as AssemblyRef;
-			Debug.Assert(asmRef != null);
+			Debug.Assert(asmRef is not null);
 			return asmRef;
 		}
 

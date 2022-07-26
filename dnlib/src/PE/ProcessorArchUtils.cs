@@ -1,4 +1,4 @@
-﻿// dnlib: See LICENSE.txt for more info
+// dnlib: See LICENSE.txt for more info
 
 using System;
 using System.Diagnostics;
@@ -16,7 +16,7 @@ namespace dnlib.PE {
 		}
 
 		static class RuntimeInformationUtils {
-#if NETSTANDARD2_0 || NETCOREAPP
+#if NETSTANDARD
 			public static bool TryGet_RuntimeInformation_Architecture(out Machine machine) =>
 				TryGetArchitecture((int)RuntimeInformation.ProcessArchitecture, out machine);
 #else
@@ -26,7 +26,7 @@ namespace dnlib.PE {
 			public static bool TryGet_RuntimeInformation_Architecture(out Machine machine) {
 				machine = 0;
 				var processArchitectureMethod = System_Runtime_InteropServices_RuntimeInformation?.GetMethod("get_ProcessArchitecture", Array2.Empty<Type>());
-				if ((object)processArchitectureMethod == null)
+				if (processArchitectureMethod is null)
 					return false;
 
 				var result = processArchitectureMethod.Invoke(null, Array2.Empty<object>());

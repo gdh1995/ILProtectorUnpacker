@@ -61,6 +61,29 @@ namespace dnlib.DotNet.Writer {
 		/// Constructor
 		/// </summary>
 		/// <param name="helper">Helps this instance</param>
+		/// <param name="method">The method</param>
+		public MethodBodyWriter(ITokenProvider helper, MethodDef method)
+			: this(helper, method, false) {
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="helper">Helps this instance</param>
+		/// <param name="method">The method</param>
+		/// <param name="keepMaxStack">Keep the original max stack value that has been initialized
+		/// in <paramref name="method"/></param>
+		public MethodBodyWriter(ITokenProvider helper, MethodDef method, bool keepMaxStack)
+			: base(method.Body.Instructions, method.Body.ExceptionHandlers) {
+			this.helper = helper;
+			cilBody = method.Body;
+			this.keepMaxStack = keepMaxStack;
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="helper">Helps this instance</param>
 		/// <param name="cilBody">The CIL method body</param>
 		public MethodBodyWriter(ITokenProvider helper, CilBody cilBody)
 			: this(helper, cilBody, false) {
@@ -80,7 +103,9 @@ namespace dnlib.DotNet.Writer {
 			this.keepMaxStack = keepMaxStack;
 		}
 
-		internal MethodBodyWriter(ITokenProvider helper) => this.helper = helper;
+		internal MethodBodyWriter(ITokenProvider helper) {
+			this.helper = helper;
+		}
 
 		internal void Reset(CilBody cilBody, bool keepMaxStack) {
 			Reset(cilBody.Instructions, cilBody.ExceptionHandlers);
@@ -114,9 +139,9 @@ namespace dnlib.DotNet.Writer {
 		/// <returns>The code and any exception handlers</returns>
 		public byte[] GetFullMethodBody() {
 			int padding = Utils.AlignUp(code.Length, 4) - code.Length;
-			var bytes = new byte[code.Length + (extraSections == null ? 0 : padding + extraSections.Length)];
+			var bytes = new byte[code.Length + (extraSections is null ? 0 : padding + extraSections.Length)];
 			Array.Copy(code, 0, bytes, 0, code.Length);
-			if (extraSections != null)
+			if (extraSections is not null)
 				Array.Copy(extraSections, 0, bytes, code.Length + padding, extraSections.Length);
 			return bytes;
 		}
@@ -201,7 +226,7 @@ namespace dnlib.DotNet.Writer {
 		}
 
 		uint GetOffset2(Instruction instr) {
-			if (instr == null)
+			if (instr is null)
 				return codeSize;
 			return GetOffset(instr);
 		}
@@ -238,9 +263,9 @@ namespace dnlib.DotNet.Writer {
 				writer.WriteUInt32(offs1);
 				writer.WriteUInt32(offs2 - offs1);
 
-				if (eh.HandlerType == ExceptionHandlerType.Catch)
+				if (eh.IsCatch)
 					writer.WriteUInt32(helper.GetToken(eh.CatchType).Raw);
-				else if (eh.HandlerType == ExceptionHandlerType.Filter)
+				else if (eh.IsFilter)
 					writer.WriteUInt32(GetOffset2(eh.FilterStart));
 				else
 					writer.WriteInt32(0);
@@ -283,9 +308,9 @@ namespace dnlib.DotNet.Writer {
 				writer.WriteUInt16((ushort)offs1);
 				writer.WriteByte((byte)(offs2 - offs1));
 
-				if (eh.HandlerType == ExceptionHandlerType.Catch)
+				if (eh.IsCatch)
 					writer.WriteUInt32(helper.GetToken(eh.CatchType).Raw);
-				else if (eh.HandlerType == ExceptionHandlerType.Filter)
+				else if (eh.IsFilter)
 					writer.WriteUInt32(GetOffset2(eh.FilterStart));
 				else
 					writer.WriteInt32(0);

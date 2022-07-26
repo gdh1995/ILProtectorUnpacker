@@ -1,4 +1,4 @@
-﻿// dnlib: See LICENSE.txt for more info
+// dnlib: See LICENSE.txt for more info
 
 using System;
 using System.Collections.Generic;
@@ -110,7 +110,7 @@ namespace dnlib.DotNet.Resources {
 		void InitializeUserTypes() {
 			foreach (var resource in resources.ResourceElements) {
 				var data = resource.ResourceData as UserResourceData;
-				if (data == null)
+				if (data is null)
 					continue;
 				var newType = typeCreator.CreateUserResourceType(data.TypeName);
 				dataToNewType[data] = newType;

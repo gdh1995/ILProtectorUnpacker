@@ -1,4 +1,4 @@
-﻿// dnlib: See LICENSE.txt for more info
+// dnlib: See LICENSE.txt for more info
 
 using System;
 using System.Collections.Generic;
@@ -9,6 +9,24 @@ using dnlib.DotNet.MD;
 using dnlib.IO;
 
 namespace dnlib.DotNet.Emit {
+	/// <summary>
+	/// <see cref="DynamicMethodBodyReader"/> options
+	/// </summary>
+	[Flags]
+	public enum DynamicMethodBodyReaderOptions {
+		/// <summary>
+		/// No option is enabled
+		/// </summary>
+		None						= 0,
+
+		/// <summary>
+		/// Some fields/methods have an unknown declaring type and don't have a context with
+		/// that information. If this is enabled, the reader will try to guess it but it doesn't
+		/// always work. If you get an <see cref="ArgumentException"/>, try enabling this option.
+		/// </summary>
+		UnknownDeclaringType		= 0x00000001,
+	}
+
 	/// <summary>
 	/// Reads code from a DynamicMethod
 	/// </summary>
@@ -44,10 +62,12 @@ namespace dnlib.DotNet.Emit {
 		readonly MethodDef method;
 		readonly int codeSize;
 		readonly int maxStack;
+		readonly bool initLocals;
 		readonly List<object> tokens;
 		readonly IList<object> ehInfos;
 		readonly byte[] ehHeader;
 		readonly string methodName;
+		readonly DynamicMethodBodyReaderOptions options;
 
 		class ReflectionFieldInfo {
 			SR.FieldInfo fieldInfo;
@@ -62,9 +82,9 @@ namespace dnlib.DotNet.Emit {
 			}
 
 			public object Read(object instance) {
-				if (fieldInfo == null)
+				if (fieldInfo is null)
 					InitializeField(instance.GetType());
-				if (fieldInfo == null)
+				if (fieldInfo is null)
 					throw new Exception($"Couldn't find field '{fieldName1}' or '{fieldName2}'");
 
 				return fieldInfo.GetValue(instance);
@@ -72,16 +92,16 @@ namespace dnlib.DotNet.Emit {
 
 			public bool Exists(object instance) {
 				InitializeField(instance.GetType());
-				return fieldInfo != null;
+				return fieldInfo is not null;
 			}
 
 			void InitializeField(Type type) {
-				if (fieldInfo != null)
+				if (fieldInfo is not null)
 					return;
 
 				var flags = SR.BindingFlags.Instance | SR.BindingFlags.Public | SR.BindingFlags.NonPublic;
 				fieldInfo = type.GetField(fieldName1, flags);
-				if (fieldInfo == null && fieldName2 != null)
+				if (fieldInfo is null && fieldName2 is not null)
 					fieldInfo = type.GetField(fieldName2, flags);
 			}
 		}
@@ -105,31 +125,58 @@ namespace dnlib.DotNet.Emit {
 		/// created by DynamicMethod.CreateDelegate(), a DynamicMethod instance, a RTDynamicMethod
 		/// instance or a DynamicResolver instance.</param>
 		/// <param name="gpContext">Generic parameter context</param>
-		public DynamicMethodBodyReader(ModuleDef module, object obj, GenericParamContext gpContext) {
+		public DynamicMethodBodyReader(ModuleDef module, object obj, GenericParamContext gpContext)
+			: this(module, obj, new Importer(module, ImporterOptions.TryToUseDefs, gpContext), DynamicMethodBodyReaderOptions.None) {
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="module">Module that will own the method body</param>
+		/// <param name="obj">This can be one of several supported types: the delegate instance
+		/// created by DynamicMethod.CreateDelegate(), a DynamicMethod instance, a RTDynamicMethod
+		/// instance or a DynamicResolver instance.</param>
+		/// <param name="importer">Importer</param>
+		public DynamicMethodBodyReader(ModuleDef module, object obj, Importer importer)
+			: this(module, obj, importer, DynamicMethodBodyReaderOptions.None) {
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="module">Module that will own the method body</param>
+		/// <param name="obj">This can be one of several supported types: the delegate instance
+		/// created by DynamicMethod.CreateDelegate(), a DynamicMethod instance, a RTDynamicMethod
+		/// instance or a DynamicResolver instance.</param>
+		/// <param name="importer">Importer</param>
+		/// <param name="options">Options</param>
+		public DynamicMethodBodyReader(ModuleDef module, object obj, Importer importer, DynamicMethodBodyReaderOptions options)
+			: base(module.Context) {
 			this.module = module;
-			importer = new Importer(module, ImporterOptions.TryToUseDefs, gpContext);
-			this.gpContext = gpContext;
+			this.importer = importer;
+			this.options = options;
+			gpContext = importer.gpContext;
 			methodName = null;
 
-			if (obj == null)
+			if (obj is null)
 				throw new ArgumentNullException(nameof(obj));
 
 			if (obj is Delegate del) {
 				obj = del.Method;
-				if (obj == null)
-					throw new Exception("Delegate.Method == null");
+				if (obj is null)
+					throw new Exception("Delegate.Method is null");
 			}
 
 			if (obj.GetType().ToString() == "System.Reflection.Emit.DynamicMethod+RTDynamicMethod") {
 				obj = rtdmOwnerFieldInfo.Read(obj) as DynamicMethod;
-				if (obj == null)
+				if (obj is null)
 					throw new Exception("RTDynamicMethod.m_owner is null or invalid");
 			}
 
-			if (obj is DynamicMethod) {
-				methodName = ((DynamicMethod)obj).Name;
+			if (obj is DynamicMethod dynMethod) {
+				methodName = dynMethod.Name;
 				obj = dmResolverFieldInfo.Read(obj);
-				if (obj == null)
+				if (obj is null)
 					throw new Exception("No resolver found");
 			}
 
@@ -137,19 +184,20 @@ namespace dnlib.DotNet.Emit {
 				throw new Exception("Couldn't find DynamicResolver");
 
 			var code = rslvCodeFieldInfo.Read(obj) as byte[];
-			if (code == null)
+			if (code is null)
 				throw new Exception("No code");
 			codeSize = code.Length;
-			var delMethod = rslvMethodFieldInfo.Read(obj) as SR.MethodBase;
-			if (delMethod == null)
+			var delMethod = rslvMethodFieldInfo.Read(obj) as DynamicMethod;
+			if (delMethod is null)
 				throw new Exception("No method");
+			initLocals = delMethod.InitLocals;
 			maxStack = (int)rslvMaxStackFieldInfo.Read(obj);
 
 			var scope = rslvDynamicScopeFieldInfo.Read(obj);
-			if (scope == null)
+			if (scope is null)
 				throw new Exception("No scope");
 			var tokensList = scopeTokensFieldInfo.Read(scope) as System.Collections.IList;
-			if (tokensList == null)
+			if (tokensList is null)
 				throw new Exception("No tokens");
 			tokens = new List<object>(tokensList.Count);
 			for (int i = 0; i < tokensList.Count; i++)
@@ -176,7 +224,7 @@ namespace dnlib.DotNet.Emit {
 		}
 
 		static List<ExceptionInfo> CreateExceptionInfos(IList<object> ehInfos) {
-			if (ehInfos == null)
+			if (ehInfos is null)
 				return new List<ExceptionInfo>();
 
 			var infos = new List<ExceptionInfo>(ehInfos.Count);
@@ -201,11 +249,11 @@ namespace dnlib.DotNet.Emit {
 		}
 
 		void UpdateLocals(byte[] localsSig) {
-			if (localsSig == null || localsSig.Length == 0)
+			if (localsSig is null || localsSig.Length == 0)
 				return;
 
 			var sig = SignatureReader.ReadSig(this, module.CorLibTypes, localsSig, gpContext) as LocalSig;
-			if (sig == null)
+			if (sig is null)
 				return;
 
 			var sigLocals = sig.Locals;
@@ -259,7 +307,7 @@ namespace dnlib.DotNet.Emit {
 		}
 
 		void CreateExceptionHandlers() {
-			if (ehHeader != null) {
+			if (ehHeader is not null) {
 				if (ehHeader.Length < 4)
 					return;
 				var reader = new BinaryReader(new MemoryStream(ehHeader));
@@ -280,9 +328,9 @@ namespace dnlib.DotNet.Emit {
 						eh.HandlerStart = GetInstructionThrow((uint)offs);
 						eh.HandlerEnd = GetInstruction((uint)(reader.ReadByte() + offs));
 
-						if (eh.HandlerType == ExceptionHandlerType.Catch)
+						if (eh.IsCatch)
 							eh.CatchType = ReadToken(reader.ReadUInt32()) as ITypeDefOrRef;
-						else if (eh.HandlerType == ExceptionHandlerType.Filter)
+						else if (eh.IsFilter)
 							eh.FilterStart = GetInstruction(reader.ReadUInt32());
 						else
 							reader.ReadUInt32();
@@ -305,9 +353,9 @@ namespace dnlib.DotNet.Emit {
 						eh.HandlerStart = GetInstructionThrow((uint)offs);
 						eh.HandlerEnd = GetInstruction((uint)(reader.ReadUInt32() + offs));
 
-						if (eh.HandlerType == ExceptionHandlerType.Catch)
+						if (eh.IsCatch)
 							eh.CatchType = ReadToken(reader.ReadUInt32()) as ITypeDefOrRef;
-						else if (eh.HandlerType == ExceptionHandlerType.Filter)
+						else if (eh.IsFilter)
 							eh.FilterStart = GetInstruction(reader.ReadUInt32());
 						else
 							reader.ReadUInt32();
@@ -316,7 +364,7 @@ namespace dnlib.DotNet.Emit {
 					}
 				}
 			}
-			else if (ehInfos != null) {
+			else if (ehInfos is not null) {
 				foreach (var ehInfo in CreateExceptionInfos(ehInfos)) {
 					var tryStart = GetInstructionThrow((uint)ehInfo.StartAddr);
 					var tryEnd = GetInstruction((uint)ehInfo.EndAddr);
@@ -325,7 +373,7 @@ namespace dnlib.DotNet.Emit {
 						var eh = new ExceptionHandler();
 						eh.HandlerType = (ExceptionHandlerType)ehInfo.Type[i];
 						eh.TryStart = tryStart;
-						eh.TryEnd = eh.HandlerType == ExceptionHandlerType.Finally ? endFinally : tryEnd;
+						eh.TryEnd = eh.IsFinally ? endFinally : tryEnd;
 						eh.FilterStart = null;	// not supported by DynamicMethod.ILGenerator
 						eh.HandlerStart = GetInstructionThrow((uint)ehInfo.CatchAddr[i]);
 						eh.HandlerEnd = GetInstruction((uint)ehInfo.CatchEndAddr[i]);
@@ -341,7 +389,6 @@ namespace dnlib.DotNet.Emit {
 		/// </summary>
 		/// <returns>A new <see cref="CilBody"/> instance</returns>
 		public MethodDef GetMethod() {
-			bool initLocals = true;
 			var cilBody = new CilBody(initLocals, instructions, exceptionHandlers, locals);
 			cilBody.MaxStack = (ushort)Math.Min(maxStack, ushort.MaxValue);
 			instructions = null;
@@ -396,11 +443,18 @@ namespace dnlib.DotNet.Emit {
 
 		IMethod ImportMethod(uint rid) {
 			var obj = Resolve(rid);
-			if (obj == null)
+			if (obj is null)
 				return null;
 
-			if (obj is RuntimeMethodHandle)
-				return importer.Import(SR.MethodBase.GetMethodFromHandle((RuntimeMethodHandle)obj));
+			if (obj is RuntimeMethodHandle) {
+				if ((options & DynamicMethodBodyReaderOptions.UnknownDeclaringType) != 0) {
+					// Sometimes it's a generic type but obj != `GenericMethodInfo`, so pass in 'default' and the
+					// runtime will try to figure out the declaring type. https://github.com/0xd4d/dnlib/issues/298
+					return importer.Import(SR.MethodBase.GetMethodFromHandle((RuntimeMethodHandle)obj, default));
+				}
+				else
+					return importer.Import(SR.MethodBase.GetMethodFromHandle((RuntimeMethodHandle)obj));
+			}
 
 			if (obj.GetType().ToString() == "System.Reflection.Emit.GenericMethodInfo") {
 				var context = (RuntimeTypeHandle)gmiContextFieldInfo.Read(obj);
@@ -423,13 +477,13 @@ namespace dnlib.DotNet.Emit {
 
 		SR.MethodInfo GetVarArgMethod(object obj) {
 			if (vamDynamicMethodFieldInfo.Exists(obj)) {
-				// .NET 4.0+
+				// .NET Framework 4.0+
 				var method = vamMethodFieldInfo.Read(obj) as SR.MethodInfo;
 				var dynMethod = vamDynamicMethodFieldInfo.Read(obj) as DynamicMethod;
 				return dynMethod ?? method;
 			}
 			else {
-				// .NET 2.0
+				// .NET Framework 2.0
 				// This is either a DynamicMethod or a MethodInfo
 				return vamMethodFieldInfo.Read(obj) as SR.MethodInfo;
 			}
@@ -437,11 +491,18 @@ namespace dnlib.DotNet.Emit {
 
 		IField ImportField(uint rid) {
 			var obj = Resolve(rid);
-			if (obj == null)
+			if (obj is null)
 				return null;
 
-			if (obj is RuntimeFieldHandle)
-				return importer.Import(SR.FieldInfo.GetFieldFromHandle((RuntimeFieldHandle)obj));
+			if (obj is RuntimeFieldHandle) {
+				if ((options & DynamicMethodBodyReaderOptions.UnknownDeclaringType) != 0) {
+					// Sometimes it's a generic type but obj != `GenericFieldInfo`, so pass in 'default' and the
+					// runtime will try to figure out the declaring type. https://github.com/0xd4d/dnlib/issues/298
+					return importer.Import(SR.FieldInfo.GetFieldFromHandle((RuntimeFieldHandle)obj, default));
+				}
+				else
+					return importer.Import(SR.FieldInfo.GetFieldFromHandle((RuntimeFieldHandle)obj));
+			}
 
 			if (obj.GetType().ToString() == "System.Reflection.Emit.GenericFieldInfo") {
 				var context = (RuntimeTypeHandle)gfiContextFieldInfo.Read(obj);
@@ -462,7 +523,7 @@ namespace dnlib.DotNet.Emit {
 
 		CallingConventionSig ImportSignature(uint rid) {
 			var sig = Resolve(rid) as byte[];
-			if (sig == null)
+			if (sig is null)
 				return null;
 
 			return SignatureReader.ReadSig(this, module.CorLibTypes, sig, gpContext);
@@ -474,15 +535,23 @@ namespace dnlib.DotNet.Emit {
 			return tokens[(int)index];
 		}
 
+		/// <inheritdoc />
+		public override void RestoreMethod(MethodDef method) {
+			base.RestoreMethod(method);
+
+			var body = method.Body;
+			body.InitLocals = initLocals;
+			body.MaxStack = (ushort)Math.Min(maxStack, ushort.MaxValue);
+		}
+
 		ITypeDefOrRef ISignatureReaderHelper.ResolveTypeDefOrRef(uint codedToken, GenericParamContext gpContext) {
 			if (!CodedToken.TypeDefOrRef.Decode(codedToken, out uint token))
 				return null;
-			uint rid = MDToken.ToRID(token);
 			switch (MDToken.ToTable(token)) {
 			case Table.TypeDef:
 			case Table.TypeRef:
 			case Table.TypeSpec:
-				return ImportType(rid);
+				return module.ResolveToken(token) as ITypeDefOrRef;
 			}
 			return null;
 		}

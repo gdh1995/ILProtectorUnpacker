@@ -1,4 +1,4 @@
-﻿// dnlib: See LICENSE.txt for more info
+// dnlib: See LICENSE.txt for more info
 
 using System;
 using System.IO;
@@ -12,6 +12,7 @@ namespace dnlib.DotNet.Writer {
 		readonly MemoryStream outStream;
 		readonly DataWriter writer;
 		readonly IWriterError helper;
+		readonly bool optimizeCustomAttributeSerializedTypeNames;
 
 		/// <summary>
 		/// Creates a field marshal blob from <paramref name="marshalType"/>
@@ -21,20 +22,34 @@ namespace dnlib.DotNet.Writer {
 		/// <param name="helper">Helps this class</param>
 		/// <returns>A field marshal blob or <c>null</c> if <paramref name="marshalType"/> is
 		/// <c>null</c></returns>
-		public static byte[] Write(ModuleDef module, MarshalType marshalType, IWriterError helper) {
-			using (var writer = new MarshalBlobWriter(module, helper))
+		public static byte[] Write(ModuleDef module, MarshalType marshalType, IWriterError helper) =>
+			Write(module, marshalType, helper, false);
+
+		/// <summary>
+		/// Creates a field marshal blob from <paramref name="marshalType"/>
+		/// </summary>
+		/// <param name="module">Owner module</param>
+		/// <param name="marshalType">Marshal type</param>
+		/// <param name="helper">Helps this class</param>
+		/// <param name="optimizeCustomAttributeSerializedTypeNames">Optimize serialized type strings in custom attributes.
+		/// For more info, see <see cref="MetadataFlags.OptimizeCustomAttributeSerializedTypeNames"/></param>
+		/// <returns>A field marshal blob or <c>null</c> if <paramref name="marshalType"/> is
+		/// <c>null</c></returns>
+		public static byte[] Write(ModuleDef module, MarshalType marshalType, IWriterError helper, bool optimizeCustomAttributeSerializedTypeNames) {
+			using (var writer = new MarshalBlobWriter(module, helper, optimizeCustomAttributeSerializedTypeNames))
 				return writer.Write(marshalType);
 		}
 
-		MarshalBlobWriter(ModuleDef module, IWriterError helper) {
+		MarshalBlobWriter(ModuleDef module, IWriterError helper, bool optimizeCustomAttributeSerializedTypeNames) {
 			this.module = module;
 			outStream = new MemoryStream();
 			writer = new DataWriter(outStream);
 			this.helper = helper;
+			this.optimizeCustomAttributeSerializedTypeNames = optimizeCustomAttributeSerializedTypeNames;
 		}
 
 		byte[] Write(MarshalType marshalType) {
-			if (marshalType == null)
+			if (marshalType is null)
 				return null;
 
 			var type = marshalType.NativeType;
@@ -84,7 +99,7 @@ namespace dnlib.DotNet.Writer {
 				Write(custMarshaler.Guid);
 				Write(custMarshaler.NativeTypeName);
 				var cm = custMarshaler.CustomMarshaler;
-				var cmName = cm == null ? string.Empty : FullNameFactory.AssemblyQualifiedName(cm, this);
+				var cmName = cm is null ? string.Empty : FullNameFactory.AssemblyQualifiedName(cm, this);
 				Write(cmName);
 				Write(custMarshaler.Cookie);
 				break;
@@ -99,7 +114,7 @@ namespace dnlib.DotNet.Writer {
 
 			case NativeType.RawBlob:
 				var data = ((RawMarshalType)marshalType).Data;
-				if (data != null)
+				if (data is not null)
 					writer.WriteBytes(data);
 				break;
 
@@ -113,7 +128,7 @@ namespace dnlib.DotNet.Writer {
 		bool UpdateCanWrite(bool isValid, string field, ref bool canWriteMore) {
 			if (!canWriteMore) {
 				if (isValid)
-					helper.Error($"MarshalType field {field} is valid even though a previous field was invalid");
+					helper.Error2("MarshalType field {0} is valid even though a previous field was invalid.", field);
 				return canWriteMore;
 			}
 
@@ -130,6 +145,7 @@ namespace dnlib.DotNet.Writer {
 		/// <inheritdoc/>
 		public void Dispose() => outStream?.Dispose();
 
-		bool IFullNameFactoryHelper.MustUseAssemblyName(IType type) => FullNameFactory.MustUseAssemblyName(module, type);
+		bool IFullNameFactoryHelper.MustUseAssemblyName(IType type) =>
+			FullNameFactory.MustUseAssemblyName(module, type, optimizeCustomAttributeSerializedTypeNames);
 	}
 }

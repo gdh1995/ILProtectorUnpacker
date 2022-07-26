@@ -1,6 +1,6 @@
 // dnlib: See LICENSE.txt for more info
 
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Serialization;
@@ -238,7 +238,7 @@ namespace dnlib.DotNet {
 		protected virtual void Dispose(bool disposing) {
 			if (!disposing)
 				return;
-			if (reader != null)
+			if (reader is not null)
 				reader.Dispose();
 			reader = null;
 		}
@@ -358,7 +358,7 @@ namespace dnlib.DotNet {
 		protected TypeRef ReadTypeRefNoAssembly() {
 			// White space is important here. Any white space before the comma/EOF must be
 			// parsed as part of the name.
-			GetNamespaceAndName(ReadId(false), out var ns, out var name);
+			GetNamespaceAndName(ReadId(false, false), out var ns, out var name);
 			return ownerModule.UpdateRowId(new TypeRefUser(ownerModule, ns, name));
 		}
 
@@ -389,17 +389,17 @@ namespace dnlib.DotNet {
 
 		internal AssemblyRef FindAssemblyRef(TypeRef nonNestedTypeRef) {
 			AssemblyRef asmRef = null;
-			if (nonNestedTypeRef != null && typeNameParserHelper != null)
+			if (nonNestedTypeRef is not null && typeNameParserHelper is not null)
 				asmRef = typeNameParserHelper.FindAssemblyRef(nonNestedTypeRef);
-			if (asmRef != null)
+			if (asmRef is not null)
 				return asmRef;
 			var ownerAsm = ownerModule.Assembly;
-			if (ownerAsm != null)
+			if (ownerAsm is not null)
 				return ownerModule.UpdateRowId(ownerAsm.ToAssemblyRef());
 			return AssemblyRef.CurrentAssembly;
 		}
 
-		internal bool IsValueType(TypeRef typeRef) => typeRef != null && typeRef.IsValueType;
+		internal bool IsValueType(TypeRef typeRef) => typeRef is not null && typeRef.IsValueType;
 
 		internal static void Verify(bool b, string msg) {
 			if (!b)
@@ -455,13 +455,13 @@ namespace dnlib.DotNet {
 			}
 		}
 
-		internal string ReadId() => ReadId(true);
+		internal string ReadId() => ReadId(true, true);
 
-		internal string ReadId(bool ignoreWhiteSpace) {
+		internal string ReadId(bool ignoreWhiteSpace, bool ignoreEqualSign) {
 			SkipWhite();
 			var sb = new StringBuilder();
 			int c;
-			while ((c = GetIdChar(ignoreWhiteSpace)) != -1)
+			while ((c = GetIdChar(ignoreWhiteSpace, ignoreEqualSign)) != -1)
 				sb.Append((char)c);
 			Verify(sb.Length > 0, "Expected an id");
 			return sb.ToString();
@@ -481,7 +481,8 @@ namespace dnlib.DotNet {
 		/// Gets the next ID char or <c>-1</c> if no more ID chars
 		/// </summary>
 		/// <param name="ignoreWhiteSpace"><c>true</c> if white space should be ignored</param>
-		internal abstract int GetIdChar(bool ignoreWhiteSpace);
+		/// <param name="ignoreEqualSign"><c>true</c> if equal sign '=' should be ignored</param>
+		internal abstract int GetIdChar(bool ignoreWhiteSpace, bool ignoreEqualSign);
 	}
 
 	/// <summary>
@@ -574,12 +575,12 @@ namespace dnlib.DotNet {
 				result = null;
 				if (typeRef == nonNestedTypeRef) {
 					var corLibSig = ownerModule.CorLibTypes.GetCorLibTypeSig(typeRef.Namespace, typeRef.Name, typeRef.DefinitionAssembly);
-					if (corLibSig != null)
+					if (corLibSig is not null)
 						result = corLibSig;
 				}
-				if (result == null) {
+				if (result is null) {
 					var typeDef = Resolve(asmRef, typeRef);
-					result = ToTypeSig(typeDef != null ? (ITypeDefOrRef)typeDef : typeRef);
+					result = ToTypeSig(typeDef is not null ? (ITypeDefOrRef)typeDef : typeRef);
 				}
 
 				if (tspecs.Count != 0)
@@ -592,12 +593,12 @@ namespace dnlib.DotNet {
 
 		TypeDef Resolve(AssemblyRef asmRef, TypeRef typeRef) {
 			var asm = ownerModule.Assembly;
-			if (asm == null)
+			if (asm is null)
 				return null;
 			if (!(AssemblyNameComparer.CompareAll.Equals(asmRef, asm) && asmRef.IsRetargetable == asm.IsRetargetable))
 				return null;
 			var td = asm.Find(typeRef);
-			return td != null && td.Module == ownerModule ? td : null;
+			return td is not null && td.Module == ownerModule ? td : null;
 		}
 
 		AssemblyRef ReadOptionalAssemblyRef() {
@@ -721,7 +722,7 @@ namespace dnlib.DotNet {
 
 		AssemblyRef ReadAssemblyRef() {
 			var asmRef = new AssemblyRefUser();
-			if (ownerModule != null)
+			if (ownerModule is not null)
 				ownerModule.UpdateRowId(asmRef);
 
 			asmRef.Name = ReadAssemblyNameId();
@@ -772,6 +773,7 @@ namespace dnlib.DotNet {
 						asmRef.PublicKeyOrToken = new PublicKey();
 					else
 						asmRef.PublicKeyOrToken = PublicKeyBase.CreatePublicKey(Utils.ParseBytes(value));
+					asmRef.Attributes |= AssemblyAttributes.PublicKey;
 					break;
 
 				case "PUBLICKEYTOKEN":
@@ -780,6 +782,7 @@ namespace dnlib.DotNet {
 						asmRef.PublicKeyOrToken = new PublicKeyToken();
 					else
 						asmRef.PublicKeyOrToken = PublicKeyBase.CreatePublicKeyToken(Utils.ParseBytes(value));
+					asmRef.Attributes &= ~AssemblyAttributes.PublicKey;
 					break;
 
 				case "CULTURE":
@@ -824,7 +827,7 @@ namespace dnlib.DotNet {
 			}
 		}
 
-		internal override int GetIdChar(bool ignoreWhiteSpace) {
+		internal override int GetIdChar(bool ignoreWhiteSpace, bool ignoreEqualSign) {
 			int c = PeekChar();
 			if (c == -1)
 				return -1;
@@ -841,7 +844,7 @@ namespace dnlib.DotNet {
 			case '*':
 			case '[':
 			case ']':
-			case '=':
+			case '=' when ignoreEqualSign:
 				return -1;
 
 			default:

@@ -1,4 +1,4 @@
-﻿// dnlib: See LICENSE.txt for more info
+// dnlib: See LICENSE.txt for more info
 
 using System;
 using System.IO;
@@ -24,6 +24,10 @@ namespace dnlib.DotNet.Pdb.Dss {
 		[DllImport("Microsoft.DiaSymReader.Native.arm.dll", EntryPoint = "CreateSymReader")]
 		static extern void CreateSymReader_arm(ref Guid id, [MarshalAs(UnmanagedType.IUnknown)] out object symReader);
 
+		[DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories | DllImportSearchPath.AssemblyDirectory)]
+		[DllImport("Microsoft.DiaSymReader.Native.arm64.dll", EntryPoint = "CreateSymReader")]
+		static extern void CreateSymReader_arm64(ref Guid id, [MarshalAs(UnmanagedType.IUnknown)] out object symReader);
+
 		[DefaultDllImportSearchPaths(DllImportSearchPath.AssemblyDirectory | DllImportSearchPath.SafeDirectories)]
 		[DllImport("Microsoft.DiaSymReader.Native.x86.dll", EntryPoint = "CreateSymWriter")]
 		static extern void CreateSymWriter_x86(ref Guid guid, [MarshalAs(UnmanagedType.IUnknown)] out object symWriter);
@@ -35,6 +39,10 @@ namespace dnlib.DotNet.Pdb.Dss {
 		[DefaultDllImportSearchPaths(DllImportSearchPath.AssemblyDirectory | DllImportSearchPath.SafeDirectories)]
 		[DllImport("Microsoft.DiaSymReader.Native.arm.dll", EntryPoint = "CreateSymWriter")]
 		static extern void CreateSymWriter_arm(ref Guid guid, [MarshalAs(UnmanagedType.IUnknown)] out object symWriter);
+
+		[DefaultDllImportSearchPaths(DllImportSearchPath.AssemblyDirectory | DllImportSearchPath.SafeDirectories)]
+		[DllImport("Microsoft.DiaSymReader.Native.arm64.dll", EntryPoint = "CreateSymWriter")]
+		static extern void CreateSymWriter_arm64(ref Guid guid, [MarshalAs(UnmanagedType.IUnknown)] out object symWriter);
 
 		static readonly Guid CLSID_CorSymReader_SxS = new Guid("0A3976C5-4529-4ef8-B0B0-42EED37082CD");
 		static Type CorSymReader_Type;
@@ -51,16 +59,16 @@ namespace dnlib.DotNet.Pdb.Dss {
 			DataReaderIStream comPdbStream = null;
 			bool error = true;
 			try {
-				if (pdbStream == null)
+				if (pdbStream is null)
 					return null;
 				var debugDir = pdbContext.CodeViewDebugDirectory;
-				if (debugDir == null)
+				if (debugDir is null)
 					return null;
 				if (!pdbContext.TryGetCodeViewData(out var pdbGuid, out uint age))
 					return null;
 
 				unmanagedReader = CreateSymUnmanagedReader(pdbContext.Options);
-				if (unmanagedReader == null)
+				if (unmanagedReader is null)
 					return null;
 
 				mdImporter = new ReaderMetaDataImport(metadata);
@@ -116,6 +124,10 @@ namespace dnlib.DotNet.Pdb.Dss {
 						CreateSymReader_arm(ref guid, out symReaderObj);
 						break;
 
+					case Machine.ARM64:
+						CreateSymReader_arm64(ref guid, out symReaderObj);
+						break;
+
 					default:
 						Debug.Fail($"Microsoft.DiaSymReader.Native doesn't support this CPU arch: {machine}");
 						symReaderObj = null;
@@ -133,7 +145,7 @@ namespace dnlib.DotNet.Pdb.Dss {
 			}
 
 			if (useOldDiaSymReader)
-				return (ISymUnmanagedReader)Activator.CreateInstance(CorSymReader_Type ?? (CorSymReader_Type = Type.GetTypeFromCLSID(CLSID_CorSymReader_SxS)));
+				return (ISymUnmanagedReader)Activator.CreateInstance(CorSymReader_Type ??= Type.GetTypeFromCLSID(CLSID_CorSymReader_SxS));
 
 			return null;
 		}
@@ -160,6 +172,10 @@ namespace dnlib.DotNet.Pdb.Dss {
 						CreateSymWriter_arm(ref guid, out symWriterObj);
 						break;
 
+					case Machine.ARM64:
+						CreateSymWriter_arm64(ref guid, out symWriterObj);
+						break;
+
 					default:
 						Debug.Fail($"Microsoft.DiaSymReader.Native doesn't support this CPU arch: {machine}");
 						symWriterObj = null;
@@ -177,7 +193,7 @@ namespace dnlib.DotNet.Pdb.Dss {
 			}
 
 			if (useOldDiaSymReader)
-				return (ISymUnmanagedWriter2)Activator.CreateInstance(CorSymWriterType ?? (CorSymWriterType = Type.GetTypeFromCLSID(CLSID_CorSymWriter_SxS)));
+				return (ISymUnmanagedWriter2)Activator.CreateInstance(CorSymWriterType ??= Type.GetTypeFromCLSID(CLSID_CorSymWriter_SxS));
 
 			return null;
 		}

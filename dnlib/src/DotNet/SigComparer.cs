@@ -465,7 +465,7 @@ namespace dnlib.DotNet {
 		/// <summary>
 		/// By default, all module and assembly compares when they're both the system library
 		/// (eg. mscorlib or System.Runtime.dll) return true, even if they're really different,
-		/// eg. mscorlib (.NET 2.0) vs mscorlib (Windows CE). If this flag is set, the system
+		/// eg. mscorlib (.NET Framework 2.0) vs mscorlib (Windows CE). If this flag is set, the system
 		/// library is compared just like any other module/assembly.
 		/// </summary>
 		MscorlibIsNotSpecial = 0x100000,
@@ -476,7 +476,7 @@ namespace dnlib.DotNet {
 		DontProjectWinMDRefs = 0x200000,
 
 		/// <summary>
-		/// Don't check type equivalence when comparing types. Starting with .NET 4.0, two different
+		/// Don't check type equivalence when comparing types. Starting with .NET Framework 4.0, two different
 		/// types can be considered equivalent if eg. a TypeIdentifierAttribute is used.
 		/// </summary>
 		DontCheckTypeEquivalence = 0x400000,
@@ -491,7 +491,7 @@ namespace dnlib.DotNet {
 	/// Compares types, signatures, methods, fields, properties, events
 	/// </summary>
 	public struct SigComparer {
-		const SigComparerOptions SigComparerOptions_SubstituteGenericParameters = (SigComparerOptions)0x400;
+		const SigComparerOptions SigComparerOptions_DontSubstituteGenericParameters = (SigComparerOptions)0x400;
 
 		const int HASHCODE_MAGIC_GLOBAL_TYPE = 1654396648;
 		const int HASHCODE_MAGIC_NESTED_TYPE = -1049070942;
@@ -521,7 +521,7 @@ namespace dnlib.DotNet {
 		bool CompareAssemblyLocale => (options & SigComparerOptions.CompareAssemblyLocale) != 0;
 		bool TypeRefCanReferenceGlobalType => (options & SigComparerOptions.TypeRefCanReferenceGlobalType) != 0;
 		bool DontCompareReturnType => (options & SigComparerOptions.DontCompareReturnType) != 0;
-		bool SubstituteGenericParameters => (options & SigComparerOptions_SubstituteGenericParameters) != 0;
+		bool DontSubstituteGenericParameters => (options & SigComparerOptions_DontSubstituteGenericParameters) != 0;
 		bool CaseInsensitiveTypeNamespaces => (options & SigComparerOptions.CaseInsensitiveTypeNamespaces) != 0;
 		bool CaseInsensitiveTypeNames => (options & SigComparerOptions.CaseInsensitiveTypeNames) != 0;
 		bool CaseInsensitiveMethodFieldNames => (options & SigComparerOptions.CaseInsensitiveMethodFieldNames) != 0;
@@ -623,13 +623,13 @@ namespace dnlib.DotNet {
 		void RestoreOptions(SigComparerOptions oldFlags) => options = oldFlags;
 
 		void InitializeGenericArguments() {
-			if (genericArguments == null)
+			if (genericArguments is null)
 				genericArguments = new GenericArguments();
 		}
 
 		static GenericInstSig GetGenericInstanceType(IMemberRefParent parent) {
 			var ts = parent as TypeSpec;
-			if (ts == null)
+			if (ts is null)
 				return null;
 			return ts.TypeSig.RemoveModifiers() as GenericInstSig;
 		}
@@ -641,7 +641,7 @@ namespace dnlib.DotNet {
 			// Could be an exported type. Resolve it and check again.
 
 			var td = b.Resolve(sourceModule);
-			return td != null && Equals(aAsm, td.Module.Assembly);
+			return td is not null && Equals(aAsm, td.Module.Assembly);
 		}
 
 		bool Equals(IAssembly aAsm, IAssembly bAsm, ExportedType b) {
@@ -649,7 +649,7 @@ namespace dnlib.DotNet {
 				return true;
 
 			var td = b.Resolve();
-			return td != null && Equals(aAsm, td.Module.Assembly);
+			return td is not null && Equals(aAsm, td.Module.Assembly);
 		}
 
 		bool Equals(IAssembly aAsm, TypeRef a, IAssembly bAsm, TypeRef b) {
@@ -660,7 +660,7 @@ namespace dnlib.DotNet {
 
 			var tda = a.Resolve(sourceModule);
 			var tdb = b.Resolve(sourceModule);
-			return tda != null && tdb != null && Equals(tda.Module.Assembly, tdb.Module.Assembly);
+			return tda is not null && tdb is not null && Equals(tda.Module.Assembly, tdb.Module.Assembly);
 		}
 
 		bool Equals(IAssembly aAsm, ExportedType a, IAssembly bAsm, ExportedType b) {
@@ -669,7 +669,7 @@ namespace dnlib.DotNet {
 
 			var tda = a.Resolve();
 			var tdb = b.Resolve();
-			return tda != null && tdb != null && Equals(tda.Module.Assembly, tdb.Module.Assembly);
+			return tda is not null && tdb is not null && Equals(tda.Module.Assembly, tdb.Module.Assembly);
 		}
 
 		bool Equals(IAssembly aAsm, TypeRef a, IAssembly bAsm, ExportedType b) {
@@ -680,7 +680,7 @@ namespace dnlib.DotNet {
 
 			var tda = a.Resolve(sourceModule);
 			var tdb = b.Resolve();
-			return tda != null && tdb != null && Equals(tda.Module.Assembly, tdb.Module.Assembly);
+			return tda is not null && tdb is not null && Equals(tda.Module.Assembly, tdb.Module.Assembly);
 		}
 
 		bool Equals(TypeDef a, IModule bMod, TypeRef b) {
@@ -690,7 +690,7 @@ namespace dnlib.DotNet {
 			// Could be an exported type. Resolve it and check again.
 
 			var td = b.Resolve(sourceModule);
-			if (td == null)
+			if (td is null)
 				return false;
 			if (!DontCheckTypeEquivalence) {
 				if (TIAHelper.Equivalent(a, td))
@@ -704,11 +704,11 @@ namespace dnlib.DotNet {
 				return true;
 
 			var td = b.Resolve();
-			return td != null && Equals(a.Module, td.Module) && Equals(a.DefinitionAssembly, td.DefinitionAssembly);
+			return td is not null && Equals(a.Module, td.Module) && Equals(a.DefinitionAssembly, td.DefinitionAssembly);
 		}
 
 		bool TypeDefScopeEquals(TypeDef a, TypeDef b) {
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!DontCheckTypeEquivalence) {
 				if (TIAHelper.Equivalent(a, b))
@@ -725,7 +725,7 @@ namespace dnlib.DotNet {
 
 			var tda = a.Resolve(sourceModule);
 			var tdb = b.Resolve(sourceModule);
-			return tda != null && tdb != null &&
+			return tda is not null && tdb is not null &&
 				Equals(tda.Module, tdb.Module) && Equals(tda.DefinitionAssembly, tdb.DefinitionAssembly);
 		}
 
@@ -737,7 +737,7 @@ namespace dnlib.DotNet {
 
 			var tda = a.Resolve(sourceModule);
 			var tdb = b.Resolve();
-			return tda != null && tdb != null &&
+			return tda is not null && tdb is not null &&
 				Equals(tda.Module, tdb.Module) && Equals(tda.DefinitionAssembly, tdb.DefinitionAssembly);
 		}
 
@@ -748,7 +748,7 @@ namespace dnlib.DotNet {
 			// Could be an exported type. Resolve it and check again.
 
 			var td = b.Resolve(sourceModule);
-			return td != null && Equals(td.Module.Assembly, aAsm);
+			return td is not null && Equals(td.Module.Assembly, aAsm);
 		}
 
 		bool Equals(Assembly aAsm, IAssembly bAsm, ExportedType b) {
@@ -756,7 +756,7 @@ namespace dnlib.DotNet {
 				return true;
 
 			var td = b.Resolve();
-			return td != null && Equals(td.Module.Assembly, aAsm);
+			return td is not null && Equals(td.Module.Assembly, aAsm);
 		}
 
 		bool Equals(Type a, IModule bMod, TypeRef b) {
@@ -766,7 +766,7 @@ namespace dnlib.DotNet {
 			// Could be an exported type. Resolve it and check again.
 
 			var td = b.Resolve(sourceModule);
-			return td != null && Equals(td.Module, a.Module) && Equals(td.DefinitionAssembly, a.Assembly);
+			return td is not null && Equals(td.Module, a.Module) && Equals(td.DefinitionAssembly, a.Assembly);
 		}
 
 		bool Equals(Type a, FileDef bFile, ExportedType b) {
@@ -774,7 +774,7 @@ namespace dnlib.DotNet {
 				return true;
 
 			var td = b.Resolve();
-			return td != null && Equals(td.Module, a.Module) && Equals(td.DefinitionAssembly, a.Assembly);
+			return td is not null && Equals(td.Module, a.Module) && Equals(td.DefinitionAssembly, a.Assembly);
 		}
 
 		/// <summary>
@@ -786,7 +786,7 @@ namespace dnlib.DotNet {
 		public bool Equals(IMemberRef a, IMemberRef b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -798,15 +798,15 @@ namespace dnlib.DotNet {
 			PropertyDef pa, pb;
 			EventDef ea, eb;
 
-			if ((ta = a as IType) != null && (tb = b as IType) != null)
+			if ((ta = a as IType) is not null && (tb = b as IType) is not null)
 				result = Equals(ta, tb);
-			else if ((fa = a as IField) != null && (fb = b as IField) != null && fa.IsField && fb.IsField)
+			else if ((fa = a as IField) is not null && (fb = b as IField) is not null && fa.IsField && fb.IsField)
 				result = Equals(fa, fb);
-			else if ((ma = a as IMethod) != null && (mb = b as IMethod) != null)
+			else if ((ma = a as IMethod) is not null && (mb = b as IMethod) is not null)
 				result = Equals(ma, mb);
-			else if ((pa = a as PropertyDef) != null && (pb = b as PropertyDef) != null)
+			else if ((pa = a as PropertyDef) is not null && (pb = b as PropertyDef) is not null)
 				result = Equals(pa, pb);
-			else if ((ea = a as EventDef) != null && (eb = b as EventDef) != null)
+			else if ((ea = a as EventDef) is not null && (eb = b as EventDef) is not null)
 				result = Equals(ea, eb);
 			else
 				result = false;
@@ -821,7 +821,7 @@ namespace dnlib.DotNet {
 		/// <param name="a">The member</param>
 		/// <returns>The hash code</returns>
 		public int GetHashCode(IMemberRef a) {
-			if (a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
@@ -833,15 +833,15 @@ namespace dnlib.DotNet {
 			PropertyDef pa;
 			EventDef ea;
 
-			if ((ta = a as IType) != null)
+			if ((ta = a as IType) is not null)
 				result = GetHashCode(ta);
-			else if ((fa = a as IField) != null)
+			else if ((fa = a as IField) is not null)
 				result = GetHashCode(fa);
-			else if ((ma = a as IMethod) != null)
+			else if ((ma = a as IMethod) is not null)
 				result = GetHashCode(ma);
-			else if ((pa = a as PropertyDef) != null)
+			else if ((pa = a as PropertyDef) is not null)
 				result = GetHashCode(pa);
-			else if ((ea = a as EventDef) != null)
+			else if ((ea = a as EventDef) is not null)
 				result = GetHashCode(ea);
 			else
 				result = 0;		// Should never be reached
@@ -874,7 +874,7 @@ namespace dnlib.DotNet {
 		public bool Equals(IType a, IType b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -886,55 +886,55 @@ namespace dnlib.DotNet {
 			TypeSig sa, sb;
 			ExportedType eta, etb;
 
-			if ((tda = a as TypeDef) != null & (tdb = b as TypeDef) != null)
+			if ((tda = a as TypeDef) is not null & (tdb = b as TypeDef) is not null)
 				result = Equals(tda, tdb);
-			else if ((tra = a as TypeRef) != null & (trb = b as TypeRef) != null)
+			else if ((tra = a as TypeRef) is not null & (trb = b as TypeRef) is not null)
 				result = Equals(tra, trb);
-			else if ((tsa = a as TypeSpec) != null & (tsb = b as TypeSpec) != null)
+			else if ((tsa = a as TypeSpec) is not null & (tsb = b as TypeSpec) is not null)
 				result = Equals(tsa, tsb);
-			else if ((sa = a as TypeSig) != null & (sb = b as TypeSig) != null)
+			else if ((sa = a as TypeSig) is not null & (sb = b as TypeSig) is not null)
 				result = Equals(sa, sb);
-			else if ((eta = a as ExportedType) != null & (etb = b as ExportedType) != null)
+			else if ((eta = a as ExportedType) is not null & (etb = b as ExportedType) is not null)
 				result = Equals(eta, etb);
-			else if (tda != null && trb != null)
+			else if (tda is not null && trb is not null)
 				result = Equals(tda, trb);		// TypeDef vs TypeRef
-			else if (tra != null && tdb != null)
+			else if (tra is not null && tdb is not null)
 				result = Equals(tdb, tra);		// TypeDef vs TypeRef
-			else if (tda != null && tsb != null)
+			else if (tda is not null && tsb is not null)
 				result = Equals(tda, tsb);		// TypeDef vs TypeSpec
-			else if (tsa != null && tdb != null)
+			else if (tsa is not null && tdb is not null)
 				result = Equals(tdb, tsa);		// TypeDef vs TypeSpec
-			else if (tda != null && sb != null)
+			else if (tda is not null && sb is not null)
 				result = Equals(tda, sb);		// TypeDef vs TypeSig
-			else if (sa != null && tdb != null)
+			else if (sa is not null && tdb is not null)
 				result = Equals(tdb, sa);		// TypeDef vs TypeSig
-			else if (tda != null && etb != null)
+			else if (tda is not null && etb is not null)
 				result = Equals(tda, etb);		// TypeDef vs ExportedType
-			else if (eta != null && tdb != null)
+			else if (eta is not null && tdb is not null)
 				result = Equals(tdb, eta);		// TypeDef vs ExportedType
-			else if (tra != null && tsb != null)
+			else if (tra is not null && tsb is not null)
 				result = Equals(tra, tsb);		// TypeRef vs TypeSpec
-			else if (tsa != null && trb != null)
+			else if (tsa is not null && trb is not null)
 				result = Equals(trb, tsa);		// TypeRef vs TypeSpec
-			else if (tra != null && sb != null)
+			else if (tra is not null && sb is not null)
 				result = Equals(tra, sb);		// TypeRef vs TypeSig
-			else if (sa != null && trb != null)
+			else if (sa is not null && trb is not null)
 				result = Equals(trb, sa);		// TypeRef vs TypeSig
-			else if (tra != null && etb != null)
+			else if (tra is not null && etb is not null)
 				result = Equals(tra, etb);		// TypeRef vs ExportedType
-			else if (eta != null && trb != null)
+			else if (eta is not null && trb is not null)
 				result = Equals(trb, eta);		// TypeRef vs ExportedType
-			else if (tsa != null && sb != null)
+			else if (tsa is not null && sb is not null)
 				result = Equals(tsa, sb);		// TypeSpec vs TypeSig
-			else if (sa != null && tsb != null)
+			else if (sa is not null && tsb is not null)
 				result = Equals(tsb, sa);		// TypeSpec vs TypeSig
-			else if (tsa != null && etb != null)
+			else if (tsa is not null && etb is not null)
 				result = Equals(tsa, etb);		// TypeSpec vs ExportedType
-			else if (eta != null && tsb != null)
+			else if (eta is not null && tsb is not null)
 				result = Equals(tsb, eta);		// TypeSpec vs ExportedType
-			else if (sa != null && etb != null)
+			else if (sa is not null && etb is not null)
 				result = Equals(sa, etb);		// TypeSig vs ExportedType
-			else if (eta != null && sb != null)
+			else if (eta is not null && sb is not null)
 				result = Equals(sb, eta);		// TypeSig vs ExportedType
 			else
 				result = false;	// Should never be reached
@@ -949,7 +949,7 @@ namespace dnlib.DotNet {
 		/// <param name="a">The type</param>
 		/// <returns>The hash code</returns>
 		public int GetHashCode(IType a) {
-			if (a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
@@ -961,15 +961,15 @@ namespace dnlib.DotNet {
 			TypeSig sig;
 			ExportedType et;
 
-			if ((td = a as TypeDef) != null)
+			if ((td = a as TypeDef) is not null)
 				hash = GetHashCode(td);
-			else if ((tr = a as TypeRef) != null)
+			else if ((tr = a as TypeRef) is not null)
 				hash = GetHashCode(tr);
-			else if ((ts = a as TypeSpec) != null)
+			else if ((ts = a as TypeSpec) is not null)
 				hash = GetHashCode(ts);
-			else if ((sig = a as TypeSig) != null)
+			else if ((sig = a as TypeSig) is not null)
 				hash = GetHashCode(sig);
-			else if ((et = a as ExportedType) != null)
+			else if ((et = a as ExportedType) is not null)
 				hash = GetHashCode(et);
 			else
 				hash = 0;	// Should never be reached
@@ -995,7 +995,7 @@ namespace dnlib.DotNet {
 		public bool Equals(TypeDef a, TypeRef b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -1008,7 +1008,7 @@ namespace dnlib.DotNet {
 			if (!DontProjectWinMDRefs) {
 				var tra = WinMDHelpers.ToCLR(a.Module ?? sourceModule, a);
 				b = WinMDHelpers.ToCLR(b.Module ?? sourceModule, b) ?? b;
-				if (tra != null) {
+				if (tra is not null) {
 					result = Equals(tra, b);
 					goto exit;
 				}
@@ -1018,19 +1018,19 @@ namespace dnlib.DotNet {
 
 			if (!Equals_TypeNames(a.Name, b.Name) || !Equals_TypeNamespaces(a.Namespace, b.Namespace))
 				result = false;
-			else if ((dtb = scope as TypeRef) != null)	// nested type
+			else if ((dtb = scope as TypeRef) is not null)	// nested type
 				result = Equals(a.DeclaringType, dtb);	// Compare enclosing types
-			else if (a.DeclaringType != null) {
+			else if (a.DeclaringType is not null) {
 				// a is nested, b isn't
 				result = false;
 			}
 			else if (DontCompareTypeScope)
 				result = true;
-			else if ((bMod = scope as IModule) != null)	// 'b' is defined in the same assembly as 'a'
+			else if ((bMod = scope as IModule) is not null)	// 'b' is defined in the same assembly as 'a'
 				result = Equals(a, bMod, b);
-			else if ((bAsm = scope as AssemblyRef) != null) {
+			else if ((bAsm = scope as AssemblyRef) is not null) {
 				var aMod = a.Module;
-				result = aMod != null && Equals(aMod.Assembly, bAsm, b);
+				result = aMod is not null && Equals(aMod.Assembly, bAsm, b);
 				if (!result) {
 					if (!DontCheckTypeEquivalence) {
 						var tdb = b.Resolve();
@@ -1040,7 +1040,7 @@ namespace dnlib.DotNet {
 			}
 			else {
 				result = false;
-				//TODO: Handle the case where scope == null
+				//TODO: Handle the case where scope is null
 			}
 
 			if (result && !TypeRefCanReferenceGlobalType && a.IsGlobalModuleType)
@@ -1067,7 +1067,7 @@ exit: ;
 		public bool Equals(TypeDef a, ExportedType b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -1079,7 +1079,7 @@ exit: ;
 			if (!DontProjectWinMDRefs) {
 				var tra = WinMDHelpers.ToCLR(a.Module ?? sourceModule, a);
 				b = WinMDHelpers.ToCLR(b.Module ?? sourceModule, b) ?? b;
-				if (tra != null) {
+				if (tra is not null) {
 					result = Equals(tra, b);
 					goto exit;
 				}
@@ -1089,20 +1089,20 @@ exit: ;
 
 			if (!Equals_TypeNames(a.Name, b.TypeName) || !Equals_TypeNamespaces(a.Namespace, b.TypeNamespace))
 				result = false;
-			else if ((dtb = scope as ExportedType) != null) {	// nested type
+			else if ((dtb = scope as ExportedType) is not null) {	// nested type
 				result = Equals(a.DeclaringType, dtb);	// Compare enclosing types
 			}
-			else if (a.DeclaringType != null) {
+			else if (a.DeclaringType is not null) {
 				result = false;	// a is nested, b isn't
 			}
 			else if (DontCompareTypeScope)
 				result = true;
 			else {
-				if ((bFile = scope as FileDef) != null)
+				if ((bFile = scope as FileDef) is not null)
 					result = Equals(a, bFile, b);
-				else if ((bAsm = scope as AssemblyRef) != null) {
+				else if ((bAsm = scope as AssemblyRef) is not null) {
 					var aMod = a.Module;
-					result = aMod != null && Equals(aMod.Assembly, bAsm, b);
+					result = aMod is not null && Equals(aMod.Assembly, bAsm, b);
 				}
 				else
 					result = false;
@@ -1136,7 +1136,7 @@ exit: ;
 		public bool Equals(TypeDef a, TypeSpec b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			return Equals(a, b.TypeSig);
 		}
@@ -1158,7 +1158,7 @@ exit: ;
 		public bool Equals(TypeDef a, TypeSig b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -1196,7 +1196,7 @@ exit: ;
 		public bool Equals(TypeRef a, TypeSpec b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			return Equals(a, b.TypeSig);
 		}
@@ -1218,7 +1218,7 @@ exit: ;
 		public bool Equals(TypeRef a, ExportedType b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -1252,7 +1252,7 @@ exit: ;
 		public bool Equals(TypeRef a, TypeSig b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -1290,7 +1290,7 @@ exit: ;
 		public bool Equals(TypeSpec a, TypeSig b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			return Equals(a.TypeSig, b);
 		}
@@ -1312,7 +1312,7 @@ exit: ;
 		public bool Equals(TypeSpec a, ExportedType b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			return Equals(a.TypeSig, b);
 		}
@@ -1334,7 +1334,7 @@ exit: ;
 		public bool Equals(TypeSig a, ExportedType b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -1370,7 +1370,7 @@ exit: ;
 		public bool Equals(TypeRef a, TypeRef b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -1399,7 +1399,7 @@ exit: ;
 			// ************************************************************************************
 
 			// See GetHashCode(Type) for the reason why null returns GetHashCodeGlobalType()
-			if (a == null)
+			if (a is null)
 				return TypeRefCanReferenceGlobalType ? GetHashCodeGlobalType() : 0;
 			if (!DontProjectWinMDRefs)
 				a = WinMDHelpers.ToCLR(a.Module ?? sourceModule, a) ?? a;
@@ -1422,7 +1422,7 @@ exit: ;
 		public bool Equals(ExportedType a, ExportedType b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -1451,7 +1451,7 @@ exit: ;
 			// ************************************************************************************
 
 			// See GetHashCode(Type) for the reason why null returns GetHashCodeGlobalType()
-			if (a == null)
+			if (a is null)
 				return TypeRefCanReferenceGlobalType ? GetHashCodeGlobalType() : 0;
 			if (!DontProjectWinMDRefs)
 				a = WinMDHelpers.ToCLR(a.Module ?? sourceModule, a) ?? a;
@@ -1473,7 +1473,7 @@ exit: ;
 		public bool Equals(TypeDef a, TypeDef b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -1483,7 +1483,7 @@ exit: ;
 			if (!DontProjectWinMDRefs) {
 				var tra = WinMDHelpers.ToCLR(a.Module ?? sourceModule, a);
 				var trb = WinMDHelpers.ToCLR(b.Module ?? sourceModule, b);
-				if (tra != null || trb != null) {
+				if (tra is not null || trb is not null) {
 					result = Equals((IType)tra ?? a, (IType)trb ?? b);
 					goto exit;
 				}
@@ -1510,17 +1510,17 @@ exit: ;
 			// ************************************************************************************
 
 			// See GetHashCode(Type) for the reason why null returns GetHashCodeGlobalType()
-			if (a == null || a.IsGlobalModuleType)
+			if (a is null || a.IsGlobalModuleType)
 				return GetHashCodeGlobalType();
 			if (!DontProjectWinMDRefs) {
 				var tra = WinMDHelpers.ToCLR(a.Module ?? sourceModule, a);
-				if (tra != null)
+				if (tra is not null)
 					return GetHashCode(tra);
 			}
 
 			int hash;
 			hash = GetHashCode_TypeName(a.Name);
-			if (a.DeclaringType != null)
+			if (a.DeclaringType is not null)
 				hash += HASHCODE_MAGIC_NESTED_TYPE;
 			else
 				hash += GetHashCode_TypeNamespace(a.Namespace);
@@ -1536,7 +1536,7 @@ exit: ;
 		public bool Equals(TypeSpec a, TypeSpec b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -1553,7 +1553,7 @@ exit: ;
 		/// <param name="a">The type</param>
 		/// <returns>The hash code</returns>
 		public int GetHashCode(TypeSpec a) {
-			if (a == null)
+			if (a is null)
 				return 0;
 			return GetHashCode(a.TypeSig);
 		}
@@ -1567,13 +1567,13 @@ exit: ;
 		bool EqualsResolutionScope(TypeRef a, TypeRef b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			var ra = a.ResolutionScope;
 			var rb = b.ResolutionScope;
 			if (ra == rb)
 				return true;
-			if (ra == null || rb == null)
+			if (ra is null || rb is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -1586,29 +1586,29 @@ exit: ;
 			bool resolveCheck = true;
 
 			// if one of them is a TypeRef, the other one must be too
-			if ((ea = ra as TypeRef) != null | (eb = rb as TypeRef) != null) {
+			if ((ea = ra as TypeRef) is not null | (eb = rb as TypeRef) is not null) {
 				result = Equals(ea, eb);
 				resolveCheck = false;
 			}
 			else if (DontCompareTypeScope)
 				result = true;
 			// only compare if both are modules
-			else if ((ma = ra as IModule) != null & (mb = rb as IModule) != null)
+			else if ((ma = ra as IModule) is not null & (mb = rb as IModule) is not null)
 				result = Equals(a, ma, b, mb);
 			// only compare if both are assemblies
-			else if ((aa = ra as AssemblyRef) != null & (ab = rb as AssemblyRef) != null)
+			else if ((aa = ra as AssemblyRef) is not null & (ab = rb as AssemblyRef) is not null)
 				result = Equals(aa, a, ab, b);
-			else if (aa != null && rb is ModuleRef) {
+			else if (aa is not null && rb is ModuleRef) {
 				var bMod = b.Module;
-				result = bMod != null && Equals(bMod.Assembly, b, aa, a);
+				result = bMod is not null && Equals(bMod.Assembly, b, aa, a);
 			}
-			else if (ab != null && ra is ModuleRef) {
+			else if (ab is not null && ra is ModuleRef) {
 				var aMod = a.Module;
-				result = aMod != null && Equals(aMod.Assembly, a, ab, b);
+				result = aMod is not null && Equals(aMod.Assembly, a, ab, b);
 			}
-			else if (aa != null && (modDef = rb as ModuleDef) != null)
+			else if (aa is not null && (modDef = rb as ModuleDef) is not null)
 				result = Equals(modDef.Assembly, aa, a);
-			else if (ab != null && (modDef = ra as ModuleDef) != null)
+			else if (ab is not null && (modDef = ra as ModuleDef) is not null)
 				result = Equals(modDef.Assembly, ab, b);
 			else {
 				result = false;
@@ -1618,7 +1618,7 @@ exit: ;
 				if (!DontCheckTypeEquivalence) {
 					var td1 = a.Resolve();
 					var td2 = b.Resolve();
-					if (td1 != null && td2 != null)
+					if (td1 is not null && td2 is not null)
 						result = TypeDefScopeEquals(td1, td2);
 				}
 			}
@@ -1636,13 +1636,13 @@ exit: ;
 		bool EqualsImplementation(ExportedType a, ExportedType b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			var ia = a.Implementation;
 			var ib = b.Implementation;
 			if (ia == ib)
 				return true;
-			if (ia == null || ib == null)
+			if (ia is null || ib is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -1654,21 +1654,21 @@ exit: ;
 			bool checkResolve = true;
 
 			// if one of them is an ExportedType, the other one must be too
-			if ((ea = ia as ExportedType) != null | (eb = ib as ExportedType) != null) {
+			if ((ea = ia as ExportedType) is not null | (eb = ib as ExportedType) is not null) {
 				result = Equals(ea, eb);
 				checkResolve = false;
 			}
 			else if (DontCompareTypeScope)
 				result = true;
 			// only compare if both are files
-			else if ((fa = ia as FileDef) != null & (fb = ib as FileDef) != null)
+			else if ((fa = ia as FileDef) is not null & (fb = ib as FileDef) is not null)
 				result = Equals(fa, fb);
 			// only compare if both are assemblies
-			else if ((aa = ia as AssemblyRef) != null & (ab = ib as AssemblyRef) != null)
+			else if ((aa = ia as AssemblyRef) is not null & (ab = ib as AssemblyRef) is not null)
 				result = Equals(aa, a, ab, b);
-			else if (fa != null && ab != null)
+			else if (fa is not null && ab is not null)
 				result = Equals(a.DefinitionAssembly, ab, b);
-			else if (fb != null && aa != null)
+			else if (fb is not null && aa is not null)
 				result = Equals(b.DefinitionAssembly, aa, a);
 			else {
 				result = false;
@@ -1677,7 +1677,7 @@ exit: ;
 			if (!result && checkResolve && !DontCheckTypeEquivalence) {
 				var td1 = a.Resolve();
 				var td2 = b.Resolve();
-				if (td1 != null && td2 != null)
+				if (td1 is not null && td2 is not null)
 					result = TypeDefScopeEquals(td1, td2);
 			}
 
@@ -1694,13 +1694,13 @@ exit: ;
 		bool EqualsScope(TypeRef a, ExportedType b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			var ra = a.ResolutionScope;
 			var ib = b.Implementation;
 			if (ra == ib)
 				return true;
-			if (ra == null || ib == null)
+			if (ra is null || ib is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -1714,19 +1714,19 @@ exit: ;
 			bool checkResolve = true;
 
 			// If one is a nested type, the other one must be too
-			if ((ea = ra as TypeRef) != null | (eb = ib as ExportedType) != null) {
+			if ((ea = ra as TypeRef) is not null | (eb = ib as ExportedType) is not null) {
 				result = Equals(ea, eb);
 				checkResolve = false;
 			}
 			else if (DontCompareTypeScope)
 				result = true;
-			else if ((ma = ra as IModule) != null & (fb = ib as FileDef) != null)
+			else if ((ma = ra as IModule) is not null & (fb = ib as FileDef) is not null)
 				result = Equals(a, ma, b, fb);
-			else if ((aa = ra as AssemblyRef) != null & (ab = ib as AssemblyRef) != null)
+			else if ((aa = ra as AssemblyRef) is not null & (ab = ib as AssemblyRef) is not null)
 				result = Equals(aa, a, ab, b);
-			else if (ma != null && ab != null)
+			else if (ma is not null && ab is not null)
 				result = Equals(a.DefinitionAssembly, ab, b);
-			else if (fb != null && aa != null)
+			else if (fb is not null && aa is not null)
 				result = Equals(b.DefinitionAssembly, aa, a);
 			else {
 				checkResolve = false;
@@ -1735,7 +1735,7 @@ exit: ;
 			if (!result && checkResolve && !DontCheckTypeEquivalence) {
 				var td1 = a.Resolve();
 				var td2 = b.Resolve();
-				if (td1 != null && td2 != null)
+				if (td1 is not null && td2 is not null)
 					result = TypeDefScopeEquals(td1, td2);
 			}
 
@@ -1752,7 +1752,7 @@ exit: ;
 		bool Equals(FileDef a, FileDef b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 
 			return UTF8String.CaseInsensitiveEquals(a.Name, b.Name);
@@ -1767,7 +1767,7 @@ exit: ;
 		bool Equals(IModule a, FileDef b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 
 			//TODO: You should compare against the module's file name, not the name in the metadata!
@@ -1783,7 +1783,7 @@ exit: ;
 		internal bool Equals(IModule a, IModule b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!MscorlibIsNotSpecial && IsCorLib(a) && IsCorLib(b))
 				return true;
@@ -1791,14 +1791,14 @@ exit: ;
 			return UTF8String.CaseInsensitiveEquals(a.Name, b.Name);
 		}
 
-		static bool IsCorLib(ModuleDef a) => a != null && a.IsManifestModule && a.Assembly.IsCorLib();
+		static bool IsCorLib(ModuleDef a) => a is not null && a.IsManifestModule && a.Assembly.IsCorLib();
 
 		static bool IsCorLib(IModule a) {
 			var mod = a as ModuleDef;
-			return mod != null && mod.IsManifestModule && mod.Assembly.IsCorLib();
+			return mod is not null && mod.IsManifestModule && mod.Assembly.IsCorLib();
 		}
 
-		static bool IsCorLib(Module a) => a != null && a.Assembly.ManifestModule == a && a.Assembly == typeof(void).Assembly;
+		static bool IsCorLib(Module a) => a is not null && a.Assembly.ManifestModule == a && a.Assembly == typeof(void).Assembly;
 		static bool IsCorLib(IAssembly a) => a.IsCorLib();
 		static bool IsCorLib(Assembly a) => a == typeof(void).Assembly;
 
@@ -1811,7 +1811,7 @@ exit: ;
 		bool Equals(ModuleDef a, ModuleDef b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!MscorlibIsNotSpecial && IsCorLib(a) && IsCorLib(b))
 				return true;
@@ -1833,7 +1833,7 @@ exit: ;
 		bool Equals(IAssembly a, IAssembly b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!MscorlibIsNotSpecial && IsCorLib(a) && IsCorLib(b))
 				return true;
@@ -1862,7 +1862,7 @@ exit: ;
 			}
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -1985,7 +1985,7 @@ exit: ;
 		static bool TokenEquals(ITypeDefOrRef a, ITypeDefOrRef b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			return a.MDToken == b.MDToken;
 		}
@@ -1995,18 +1995,23 @@ exit: ;
 		/// </summary>
 		/// <param name="a">The type</param>
 		/// <returns>The hash code</returns>
-		public int GetHashCode(TypeSig a) {
+		public int GetHashCode(TypeSig a) => GetHashCode(a, true);
+
+		int GetHashCode(TypeSig a, bool substituteGenericParameters) {
 			// ********************************************
 			// IMPORTANT: This must match GetHashCode(Type)
 			// ********************************************
-			if (a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
 			int hash;
 
-			if (genericArguments != null)
+			if (substituteGenericParameters && genericArguments is not null) {
+				var t = a;
 				a = genericArguments.Resolve(a);
+				substituteGenericParameters = t == a;
+			}
 
 			switch (a.ElementType) {
 			case ElementType.Void:
@@ -2039,15 +2044,15 @@ exit: ;
 				break;
 
 			case ElementType.Ptr:
-				hash = HASHCODE_MAGIC_ET_PTR + GetHashCode(a.Next);
+				hash = HASHCODE_MAGIC_ET_PTR + GetHashCode(a.Next, substituteGenericParameters);
 				break;
 
 			case ElementType.ByRef:
-				hash = HASHCODE_MAGIC_ET_BYREF + GetHashCode(a.Next);
+				hash = HASHCODE_MAGIC_ET_BYREF + GetHashCode(a.Next, substituteGenericParameters);
 				break;
 
 			case ElementType.SZArray:
-				hash = HASHCODE_MAGIC_ET_SZARRAY + GetHashCode(a.Next);
+				hash = HASHCODE_MAGIC_ET_SZARRAY + GetHashCode(a.Next, substituteGenericParameters);
 				break;
 
 			case ElementType.CModReqd:
@@ -2055,14 +2060,14 @@ exit: ;
 			case ElementType.Pinned:
 				// When comparing an ExportedType/TypeDef/TypeRef to a ModifierSig/PinnedSig,
 				// the ET is ignored, so we must ignore it when calculating the hash.
-				hash = GetHashCode(a.Next);
+				hash = GetHashCode(a.Next, substituteGenericParameters);
 				break;
 
 			case ElementType.Array:
 				// Don't include sizes and lower bounds since GetHashCode(Type) doesn't (and can't).
 				// Also, if IgnoreMultiDimensionArrayLowerBoundsAndSizes is set, we shouldn't include them either.
 				var ara = (ArraySig)a;
-				hash = HASHCODE_MAGIC_ET_ARRAY + (int)ara.Rank + GetHashCode(ara.Next);
+				hash = HASHCODE_MAGIC_ET_ARRAY + (int)ara.Rank + GetHashCode(ara.Next, substituteGenericParameters);
 				break;
 
 			case ElementType.Var:
@@ -2076,15 +2081,8 @@ exit: ;
 			case ElementType.GenericInst:
 				var gia = (GenericInstSig)a;
 				hash = HASHCODE_MAGIC_ET_GENERICINST;
-				if (SubstituteGenericParameters) {
-					InitializeGenericArguments();
-					genericArguments.PushTypeArgs(gia.GenericArguments);
-					hash += GetHashCode(gia.GenericType);
-					genericArguments.PopTypeArgs();
-				}
-				else
-					hash += GetHashCode(gia.GenericType);
-				hash += GetHashCode(gia.GenericArguments);
+				hash += GetHashCode(gia.GenericType, substituteGenericParameters);
+				hash += GetHashCode(gia.GenericArguments, substituteGenericParameters);
 				break;
 
 			case ElementType.FnPtr:
@@ -2092,11 +2090,11 @@ exit: ;
 				break;
 
 			case ElementType.ValueArray:
-				hash = HASHCODE_MAGIC_ET_VALUEARRAY + (int)(a as ValueArraySig).Size + GetHashCode(a.Next);
+				hash = HASHCODE_MAGIC_ET_VALUEARRAY + (int)(a as ValueArraySig).Size + GetHashCode(a.Next, substituteGenericParameters);
 				break;
 
 			case ElementType.Module:
-				hash = HASHCODE_MAGIC_ET_MODULE + (int)(a as ModuleSig).Index + GetHashCode(a.Next);
+				hash = HASHCODE_MAGIC_ET_MODULE + (int)(a as ModuleSig).Index + GetHashCode(a.Next, substituteGenericParameters);
 				break;
 
 			case ElementType.End:
@@ -2120,7 +2118,7 @@ exit: ;
 		public bool Equals(IList<TypeSig> a, IList<TypeSig> b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -2146,17 +2144,19 @@ exit: ;
 		/// </summary>
 		/// <param name="a">The type list</param>
 		/// <returns>The hash code</returns>
-		public int GetHashCode(IList<TypeSig> a) {
+		public int GetHashCode(IList<TypeSig> a) => GetHashCode(a, true);
+
+		int GetHashCode(IList<TypeSig> a, bool substituteGenericParameters) {
 			//************************************************************************
 			// IMPORTANT: This code must match any other GetHashCode(IList<SOME_TYPE>)
 			//************************************************************************
-			if (a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
 			uint hash = 0;
 			for (int i = 0; i < a.Count; i++) {
-				hash += (uint)GetHashCode(a[i]);
+				hash += (uint)GetHashCode(a[i], substituteGenericParameters);
 				hash = (hash << 13) | (hash >> 19);
 			}
 			recursionCounter.Decrement();
@@ -2166,7 +2166,7 @@ exit: ;
 		bool Equals(IList<uint> a, IList<uint> b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (a.Count != b.Count)
 				return false;
@@ -2180,7 +2180,7 @@ exit: ;
 		bool Equals(IList<int> a, IList<int> b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (a.Count != b.Count)
 				return false;
@@ -2200,7 +2200,7 @@ exit: ;
 		public bool Equals(CallingConventionSig a, CallingConventionSig b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -2218,26 +2218,26 @@ exit: ;
 				case CallingConvention.VarArg:
 				case CallingConvention.Property:
 				case CallingConvention.NativeVarArg:
+				case CallingConvention.Unmanaged:
 					MethodBaseSig ma = a as MethodBaseSig, mb = b as MethodBaseSig;
-					result = ma != null && mb != null && Equals(ma, mb);
+					result = ma is not null && mb is not null && Equals(ma, mb);
 					break;
 
 				case CallingConvention.Field:
 					FieldSig fa = a as FieldSig, fb = b as FieldSig;
-					result = fa != null && fb != null && Equals(fa, fb);
+					result = fa is not null && fb is not null && Equals(fa, fb);
 					break;
 
 				case CallingConvention.LocalSig:
 					LocalSig la = a as LocalSig, lb = b as LocalSig;
-					result = la != null && lb != null && Equals(la, lb);
+					result = la is not null && lb is not null && Equals(la, lb);
 					break;
 
 				case CallingConvention.GenericInst:
 					GenericInstMethodSig ga = a as GenericInstMethodSig, gb = b as GenericInstMethodSig;
-					result = ga != null && gb != null && Equals(ga, gb);
+					result = ga is not null && gb is not null && Equals(ga, gb);
 					break;
 
-				case CallingConvention.Unmanaged:
 				default:
 					result = false;
 					break;
@@ -2254,7 +2254,7 @@ exit: ;
 		/// <param name="a">The sig</param>
 		/// <returns>The hash code</returns>
 		public int GetHashCode(CallingConventionSig a) {
-			if (a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
@@ -2269,26 +2269,26 @@ exit: ;
 			case CallingConvention.VarArg:
 			case CallingConvention.Property:
 			case CallingConvention.NativeVarArg:
+			case CallingConvention.Unmanaged:
 				var ma = a as MethodBaseSig;
-				hash = ma == null ? 0 : GetHashCode(ma);
+				hash = ma is null ? 0 : GetHashCode(ma);
 				break;
 
 			case CallingConvention.Field:
 				var fa = a as FieldSig;
-				hash = fa == null ? 0 : GetHashCode(fa);
+				hash = fa is null ? 0 : GetHashCode(fa);
 				break;
 
 			case CallingConvention.LocalSig:
 				var la = a as LocalSig;
-				hash = la == null ? 0 : GetHashCode(la);
+				hash = la is null ? 0 : GetHashCode(la);
 				break;
 
 			case CallingConvention.GenericInst:
 				var ga = a as GenericInstMethodSig;
-				hash = ga == null ? 0 : GetHashCode(ga);
+				hash = ga is null ? 0 : GetHashCode(ga);
 				break;
 
-			case CallingConvention.Unmanaged:
 			default:
 				hash = GetHashCode_CallingConvention(a);
 				break;
@@ -2307,7 +2307,7 @@ exit: ;
 		public bool Equals(MethodBaseSig a, MethodBaseSig b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -2328,7 +2328,7 @@ exit: ;
 		/// <param name="a">The method/property sig</param>
 		/// <returns>The hash code</returns>
 		public int GetHashCode(MethodBaseSig a) {
-			if (a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
@@ -2383,10 +2383,8 @@ exit: ;
 		public bool Equals(FieldSig a, FieldSig b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
-			if (a == FieldSig.ExternalTypeSig || b == FieldSig.ExternalTypeSig)
-				return true;
 			if (!recursionCounter.Increment())
 				return false;
 
@@ -2402,7 +2400,7 @@ exit: ;
 		/// <param name="a">The field sig</param>
 		/// <returns>The hash code</returns>
 		public int GetHashCode(FieldSig a) {
-			if (a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
@@ -2423,7 +2421,7 @@ exit: ;
 		public bool Equals(LocalSig a, LocalSig b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -2440,7 +2438,7 @@ exit: ;
 		/// <param name="a">The local sig</param>
 		/// <returns>The hash code</returns>
 		public int GetHashCode(LocalSig a) {
-			if (a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
@@ -2461,7 +2459,7 @@ exit: ;
 		public bool Equals(GenericInstMethodSig a, GenericInstMethodSig b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -2478,7 +2476,7 @@ exit: ;
 		/// <param name="a">The generic inst method sig</param>
 		/// <returns>The hash code</returns>
 		public int GetHashCode(GenericInstMethodSig a) {
-			if (a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
@@ -2499,7 +2497,7 @@ exit: ;
 		public bool Equals(IMethod a, IMethod b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -2509,15 +2507,15 @@ exit: ;
 			MemberRef mra, mrb;
 			MethodSpec msa, msb;
 
-			if ((mda = a as MethodDef) != null & (mdb = b as MethodDef) != null)
+			if ((mda = a as MethodDef) is not null & (mdb = b as MethodDef) is not null)
 				result = Equals(mda, mdb);
-			else if ((mra = a as MemberRef) != null & (mrb = b as MemberRef) != null)
+			else if ((mra = a as MemberRef) is not null & (mrb = b as MemberRef) is not null)
 				result = Equals(mra, mrb);
-			else if ((msa = a as MethodSpec) != null && (msb = b as MethodSpec) != null)
+			else if ((msa = a as MethodSpec) is not null && (msb = b as MethodSpec) is not null)
 				result = Equals(msa, msb);
-			else if (mda != null && mrb != null)
+			else if (mda is not null && mrb is not null)
 				result = Equals(mda, mrb);
-			else if (mra != null && mdb != null)
+			else if (mra is not null && mdb is not null)
 				result = Equals(mdb, mra);
 			else
 				result = false;
@@ -2532,7 +2530,7 @@ exit: ;
 		/// <param name="a">The method</param>
 		/// <returns>The hash code</returns>
 		public int GetHashCode(IMethod a) {
-			if (a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
@@ -2542,11 +2540,11 @@ exit: ;
 			MemberRef mra;
 			MethodSpec msa;
 
-			if ((mda = a as MethodDef) != null)
+			if ((mda = a as MethodDef) is not null)
 				hash = GetHashCode(mda);
-			else if ((mra = a as MemberRef) != null)
+			else if ((mra = a as MemberRef) is not null)
 				hash = GetHashCode(mra);
-			else if ((msa = a as MethodSpec) != null)
+			else if ((msa = a as MethodSpec) is not null)
 				hash = GetHashCode(msa);
 			else
 				hash = 0;
@@ -2572,7 +2570,7 @@ exit: ;
 		public bool Equals(MethodDef a, MemberRef b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -2581,7 +2579,7 @@ exit: ;
 			if (!DontProjectWinMDRefs) {
 				var mra = WinMDHelpers.ToCLR(a.Module ?? sourceModule, a);
 				b = WinMDHelpers.ToCLR(b.Module ?? sourceModule, b) ?? b;
-				if (mra != null) {
+				if (mra is not null) {
 					result = Equals(mra, b);
 					goto exit;
 				}
@@ -2605,7 +2603,7 @@ exit: ;
 		public bool Equals(MethodDef a, MethodDef b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -2614,7 +2612,7 @@ exit: ;
 			if (!DontProjectWinMDRefs) {
 				var mra = WinMDHelpers.ToCLR(a.Module ?? sourceModule, a);
 				var mrb = WinMDHelpers.ToCLR(b.Module ?? sourceModule, b);
-				if (mra != null || mrb != null) {
+				if (mra is not null || mrb is not null) {
 					result = Equals((IMethod)mra ?? a, (IMethod)mrb ?? b);
 					goto exit;
 				}
@@ -2637,11 +2635,11 @@ exit: ;
 			// ***********************************************************************
 			// IMPORTANT: This hash code must match the MemberRef/MethodBase hash code
 			// ***********************************************************************
-			if (a == null)
+			if (a is null)
 				return 0;
 			if (!DontProjectWinMDRefs) {
 				var mra = WinMDHelpers.ToCLR(a.Module ?? sourceModule, a);
-				if (mra != null)
+				if (mra is not null)
 					return GetHashCode(mra);
 			}
 
@@ -2666,7 +2664,7 @@ exit: ;
 		public bool Equals(MemberRef a, MemberRef b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -2692,7 +2690,7 @@ exit: ;
 			// ********************************************************************************
 			// IMPORTANT: This hash code must match the MethodDef/FieldDef/MethodBase hash code
 			// ********************************************************************************
-			if (a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
@@ -2702,7 +2700,7 @@ exit: ;
 
 			int hash = GetHashCode_MethodFieldName(a.Name);
 			GenericInstSig git;
-			if (SubstituteGenericParameters && (git = GetGenericInstanceType(a.Class)) != null) {
+			if (CompareMethodFieldDeclaringType && !DontSubstituteGenericParameters && (git = GetGenericInstanceType(a.Class)) is not null) {
 				InitializeGenericArguments();
 				genericArguments.PushTypeArgs(git.GenericArguments);
 				hash += GetHashCode(a.Signature);
@@ -2726,7 +2724,7 @@ exit: ;
 		public bool Equals(MethodSpec a, MethodSpec b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -2746,22 +2744,19 @@ exit: ;
 			// *************************************************************
 			// IMPORTANT: This hash code must match the MethodBase hash code
 			// *************************************************************
-			if (a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
 
-			// We must do this or it won't get the same hash code as some MethodInfos
-			var oldOptions = SetOptions(SigComparerOptions_SubstituteGenericParameters);
 			var gim = a.GenericInstMethodSig;
-			if (gim != null) {
+			if (gim is not null) {
 				InitializeGenericArguments();
 				genericArguments.PushMethodArgs(gim.GenericArguments);
 			}
 			int hash = GetHashCode(a.Method);
-			if (gim != null)
+			if (gim is not null)
 				genericArguments.PopMethodArgs();
-			RestoreOptions(oldOptions);
 
 			recursionCounter.Decrement();
 			return hash;
@@ -2776,7 +2771,7 @@ exit: ;
 		bool Equals(IMemberRefParent a, IMemberRefParent b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -2787,18 +2782,18 @@ exit: ;
 			MethodDef ma, mb;
 			TypeDef td;
 
-			if ((ita = a as ITypeDefOrRef) != null && (itb = b as ITypeDefOrRef) != null)
+			if ((ita = a as ITypeDefOrRef) is not null && (itb = b as ITypeDefOrRef) is not null)
 				result = Equals((IType)ita, (IType)itb);
-			else if ((moda = a as ModuleRef) != null & (modb = b as ModuleRef) != null) {
+			else if ((moda = a as ModuleRef) is not null & (modb = b as ModuleRef) is not null) {
 				ModuleDef omoda = moda.Module, omodb = modb.Module;
 				result = Equals((IModule)moda, (IModule)modb) &&
 						Equals(omoda?.Assembly, omodb?.Assembly);
 			}
-			else if ((ma = a as MethodDef) != null && (mb = b as MethodDef) != null)
+			else if ((ma = a as MethodDef) is not null && (mb = b as MethodDef) is not null)
 				result = Equals(ma, mb);
-			else if (modb != null && (td = a as TypeDef) != null)
+			else if (modb is not null && (td = a as TypeDef) is not null)
 				result = EqualsGlobal(td, modb);
-			else if (moda != null && (td = b as TypeDef) != null)
+			else if (moda is not null && (td = b as TypeDef) is not null)
 				result = EqualsGlobal(td, moda);
 			else
 				result = false;
@@ -2813,7 +2808,7 @@ exit: ;
 		/// <param name="a">The <c>MemberRefParent</c></param>
 		/// <returns>The hash code</returns>
 		int GetHashCode(IMemberRefParent a) {
-			if (a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
@@ -2822,11 +2817,11 @@ exit: ;
 			ITypeDefOrRef ita;
 			MethodDef ma;
 
-			if ((ita = a as ITypeDefOrRef) != null)
+			if ((ita = a as ITypeDefOrRef) is not null)
 				hash = GetHashCode((IType)ita);
 			else if (a is ModuleRef)
 				hash = GetHashCodeGlobalType();
-			else if ((ma = a as MethodDef) != null) {
+			else if ((ma = a as MethodDef) is not null) {
 				// Only use the declaring type so we get the same hash code when hashing a MethodBase.
 				hash = GetHashCode(ma.DeclaringType);
 			}
@@ -2846,7 +2841,7 @@ exit: ;
 		public bool Equals(IField a, IField b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -2855,13 +2850,13 @@ exit: ;
 			FieldDef fa, fb;
 			MemberRef ma, mb;
 
-			if ((fa = a as FieldDef) != null & (fb = b as FieldDef) != null)
+			if ((fa = a as FieldDef) is not null & (fb = b as FieldDef) is not null)
 				result = Equals(fa, fb);
-			else if ((ma = a as MemberRef) != null & (mb = b as MemberRef) != null)
+			else if ((ma = a as MemberRef) is not null & (mb = b as MemberRef) is not null)
 				result = Equals(ma, mb);
-			else if (fa != null && mb != null)
+			else if (fa is not null && mb is not null)
 				result = Equals(fa, mb);
-			else if (fb != null && ma != null)
+			else if (fb is not null && ma is not null)
 				result = Equals(fb, ma);
 			else
 				result = false;
@@ -2876,7 +2871,7 @@ exit: ;
 		/// <param name="a">The field</param>
 		/// <returns>The hash code</returns>
 		public int GetHashCode(IField a) {
-			if (a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
@@ -2885,9 +2880,9 @@ exit: ;
 			FieldDef fa;
 			MemberRef ma;
 
-			if ((fa = a as FieldDef) != null)
+			if ((fa = a as FieldDef) is not null)
 				hash = GetHashCode(fa);
-			else if ((ma = a as MemberRef) != null)
+			else if ((ma = a as MemberRef) is not null)
 				hash = GetHashCode(ma);
 			else
 				hash = 0;
@@ -2913,7 +2908,7 @@ exit: ;
 		public bool Equals(FieldDef a, MemberRef b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -2936,7 +2931,7 @@ exit: ;
 		public bool Equals(FieldDef a, FieldDef b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -2958,7 +2953,7 @@ exit: ;
 			// **********************************************************************
 			// IMPORTANT: This hash code must match the MemberRef/FieldInfo hash code
 			// **********************************************************************
-			if (a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
@@ -2981,7 +2976,7 @@ exit: ;
 		public bool Equals(PropertyDef a, PropertyDef b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -3003,7 +2998,7 @@ exit: ;
 			// ***************************************************************
 			// IMPORTANT: This hash code must match the PropertyInfo hash code
 			// ***************************************************************
-			if (a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
@@ -3027,7 +3022,7 @@ exit: ;
 		public bool Equals(EventDef a, EventDef b) {
 			if (a == b)
 				return true;
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -3049,7 +3044,7 @@ exit: ;
 			// ************************************************************
 			// IMPORTANT: This hash code must match the EventInfo hash code
 			// ************************************************************
-			if (a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
@@ -3067,7 +3062,7 @@ exit: ;
 		bool EqualsGlobal(TypeDef a, ModuleRef b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -3099,7 +3094,7 @@ exit: ;
 		public bool Equals(IType a, Type b) {
 			// Global methods and fields have their DeclaringType set to null. Assume
 			// null always means the global type.
-			if (a == null)
+			if (a is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -3111,15 +3106,15 @@ exit: ;
 			TypeSig sig;
 			ExportedType et;
 
-			if ((td = a as TypeDef) != null)
+			if ((td = a as TypeDef) is not null)
 				result = Equals(td, b);
-			else if ((tr = a as TypeRef) != null)
+			else if ((tr = a as TypeRef) is not null)
 				result = Equals(tr, b);
-			else if ((ts = a as TypeSpec) != null)
+			else if ((ts = a as TypeSpec) is not null)
 				result = Equals(ts, b);
-			else if ((sig = a as TypeSig) != null)
+			else if ((sig = a as TypeSig) is not null)
 				result = Equals(sig, b);
-			else if ((et = a as ExportedType) != null)
+			else if ((et = a as ExportedType) is not null)
 				result = Equals(et, b);
 			else
 				result = false;
@@ -3145,9 +3140,9 @@ exit: ;
 		public bool Equals(TypeDef a, Type b) {
 			// Global methods and fields have their DeclaringType set to null. Assume
 			// null always means the global type.
-			if (a == null)
+			if (a is null)
 				return false;
-			if ((object)b == null)
+			if (b is null)
 				return a.IsGlobalModuleType;
 			if (!recursionCounter.Increment())
 				return false;
@@ -3156,13 +3151,13 @@ exit: ;
 
 			if (!DontProjectWinMDRefs) {
 				var tra = WinMDHelpers.ToCLR(a.Module ?? sourceModule, a);
-				if (tra != null) {
+				if (tra is not null) {
 					result = Equals(tra, b);
 					goto exit;
 				}
 			}
 			result = !b.HasElementType &&
-					Equals_TypeNames(a.Name, b.Name) &&
+					Equals_TypeNames(a.Name, ReflectionExtensions.Unescape(b.Name)) &&
 					Equals_TypeNamespaces(a.Namespace, b) &&
 					EnclosingTypeEquals(a.DeclaringType, b.DeclaringType) &&
 					(DontCompareTypeScope || Equals(a.Module, b.Module));
@@ -3173,10 +3168,10 @@ exit: ;
 		}
 
 		bool EnclosingTypeEquals(TypeDef a, Type b) {
-			// b == null doesn't mean that b is the global type
+			// b is null doesn't mean that b is the global type
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || (object)b == null)
+			if (a is null || b is null)
 				return false;
 			return Equals(a, b);
 		}
@@ -3198,9 +3193,9 @@ exit: ;
 		public bool Equals(TypeRef a, Type b) {
 			// Global methods and fields have their DeclaringType set to null. Assume
 			// null always means the global type.
-			if (a == null)
+			if (a is null)
 				return false;
-			if ((object)b == null)
+			if (b is null)
 				return false;	// Must use a ModuleRef to reference the global type, so always fail
 			if (!recursionCounter.Increment())
 				return false;
@@ -3216,21 +3211,21 @@ exit: ;
 
 			if (!b.IsTypeDef())
 				result = false;
-			else if (!Equals_TypeNames(a.Name, b.Name) || !Equals_TypeNamespaces(a.Namespace, b))
+			else if (!Equals_TypeNames(a.Name, ReflectionExtensions.Unescape(b.Name)) || !Equals_TypeNamespaces(a.Namespace, b))
 				result = false;
-			else if ((dta = scope as TypeRef) != null)	// nested type
+			else if ((dta = scope as TypeRef) is not null)	// nested type
 				result = Equals(dta, b.DeclaringType);	// Compare enclosing types
 			else if (b.IsNested)
 				result = false;	// b is nested, a isn't
 			else if (DontCompareTypeScope)
 				result = true;
-			else if ((aMod = scope as IModule) != null)	// 'a' is defined in the same assembly as 'b'
+			else if ((aMod = scope as IModule) is not null)	// 'a' is defined in the same assembly as 'b'
 				result = Equals(b, aMod, a);
-			else if ((aAsm = scope as AssemblyRef) != null)
+			else if ((aAsm = scope as AssemblyRef) is not null)
 				result = Equals(b.Assembly, aAsm, a);
 			else {
 				result = false;
-				//TODO: Handle the case where scope == null
+				//TODO: Handle the case where scope is null
 			}
 
 			recursionCounter.Decrement();
@@ -3260,9 +3255,9 @@ exit: ;
 		public bool Equals(TypeSpec a, Type b) {
 			// Global methods and fields have their DeclaringType set to null. Assume
 			// null always means the global type.
-			if (a == null)
+			if (a is null)
 				return false;
-			if ((object)b == null)
+			if (b is null)
 				return false;	// Must use a ModuleRef to reference the global type, so always fail
 			return Equals(a.TypeSig, b);
 		}
@@ -3281,11 +3276,11 @@ exit: ;
 		/// <param name="a">Type #1</param>
 		/// <param name="b">Type #2</param>
 		/// <returns><c>true</c> if same, <c>false</c> otherwise</returns>
-		public bool Equals(TypeSig a, Type b) => Equals(a, b, false);
+		public bool Equals(TypeSig a, Type b) => Equals(a, b, null, false);
 
-		bool Equals(ITypeDefOrRef a, Type b, bool treatAsGenericInst) {
+		bool Equals(ITypeDefOrRef a, Type b, Type declaringType) {
 			if (a is TypeSpec ts)
-				return Equals(ts.TypeSig, b, treatAsGenericInst);
+				return Equals(ts.TypeSig, b, declaringType);
 			return Equals(a, b);
 		}
 
@@ -3294,10 +3289,10 @@ exit: ;
 		/// </summary>
 		/// <param name="a">The type</param>
 		static bool IsFnPtrElementType(Type a) {
-			if ((object)a == null || !a.HasElementType)
+			if (a is null || !a.HasElementType)
 				return false;
 			var et = a.GetElementType();
-			if (et == null || et.HasElementType)
+			if (et is null || et.HasElementType)
 				return false;
 			if (et != typeof(IntPtr))	// FnPtr is mapped to System.IntPtr
 				return false;
@@ -3312,21 +3307,24 @@ exit: ;
 		/// </summary>
 		/// <param name="a">Type #1</param>
 		/// <param name="b">Type #2</param>
+		/// <param name="declaringType">Root declaring type to check if we should
+		/// treat <paramref name="b"/> as a generic instance type</param>
 		/// <param name="treatAsGenericInst"><c>true</c> if we should treat <paramref name="b"/>
 		/// as a generic instance type</param>
 		/// <returns><c>true</c> if same, <c>false</c> otherwise</returns>
-		bool Equals(TypeSig a, Type b, bool treatAsGenericInst) {
+		bool Equals(TypeSig a, Type b, Type declaringType, bool? treatAsGenericInst = null) {
 			// Global methods and fields have their DeclaringType set to null. Assume
 			// null always means the global type.
-			if (a == null)
+			if (a is null)
 				return false;
-			if ((object)b == null)
+			if (b is null)
 				return false;	// Must use a ModuleRef to reference the global type, so always fail
 			if (!recursionCounter.Increment())
 				return false;
 			bool result;
 
-			if (genericArguments != null)
+			bool treatAsGenericInst2 = treatAsGenericInst ?? declaringType.MustTreatTypeAsGenericInstType(b);
+			if (genericArguments is not null)
 				a = genericArguments.Resolve(a);
 
 			switch (a.ElementType) {
@@ -3348,7 +3346,7 @@ exit: ;
 			case ElementType.I:
 			case ElementType.U:
 			case ElementType.Object:
-				result = Equals(((TypeDefOrRefSig)a).TypeDefOrRef, b, treatAsGenericInst);
+				result = Equals(((TypeDefOrRefSig)a).TypeDefOrRef, b, declaringType);
 				break;
 
 			case ElementType.Ptr:
@@ -3356,10 +3354,10 @@ exit: ;
 					result = false;
 				else if (IsFnPtrElementType(b)) {
 					a = a.Next.RemoveModifiers();
-					result = a != null && a.ElementType == ElementType.FnPtr;
+					result = a is not null && a.ElementType == ElementType.FnPtr;
 				}
 				else
-					result = Equals(a.Next, b.GetElementType());
+					result = Equals(a.Next, b.GetElementType(), declaringType);
 				break;
 
 			case ElementType.ByRef:
@@ -3367,10 +3365,10 @@ exit: ;
 					result = false;
 				else if (IsFnPtrElementType(b)) {
 					a = a.Next.RemoveModifiers();
-					result = a != null && a.ElementType == ElementType.FnPtr;
+					result = a is not null && a.ElementType == ElementType.FnPtr;
 				}
 				else
-					result = Equals(a.Next, b.GetElementType());
+					result = Equals(a.Next, b.GetElementType(), declaringType);
 				break;
 
 			case ElementType.SZArray:
@@ -3378,14 +3376,14 @@ exit: ;
 					result = false;
 				else if (IsFnPtrElementType(b)) {
 					a = a.Next.RemoveModifiers();
-					result = a != null && a.ElementType == ElementType.FnPtr;
+					result = a is not null && a.ElementType == ElementType.FnPtr;
 				}
 				else
-					result = Equals(a.Next, b.GetElementType());
+					result = Equals(a.Next, b.GetElementType(), declaringType);
 				break;
 
 			case ElementType.Pinned:
-				result = Equals(a.Next, b, treatAsGenericInst);
+				result = Equals(a.Next, b, declaringType);
 				break;
 
 			case ElementType.Array:
@@ -3395,48 +3393,41 @@ exit: ;
 					var ara = a as ArraySig;
 					result = ara.Rank == b.GetArrayRank() &&
 						(IsFnPtrElementType(b) ?
-								(a = a.Next.RemoveModifiers()) != null && a.ElementType == ElementType.FnPtr :
-								Equals(a.Next, b.GetElementType()));
+								(a = a.Next.RemoveModifiers()) is not null && a.ElementType == ElementType.FnPtr :
+								Equals(a.Next, b.GetElementType(), declaringType));
 				}
 				break;
 
 			case ElementType.ValueType:
 			case ElementType.Class:
-				result = Equals((a as ClassOrValueTypeSig).TypeDefOrRef, b, treatAsGenericInst);
+				result = Equals((a as ClassOrValueTypeSig).TypeDefOrRef, b, declaringType);
 				break;
 
 			case ElementType.Var:
 				result = b.IsGenericParameter &&
 						b.GenericParameterPosition == (a as GenericSig).Number &&
-						(object)b.DeclaringMethod == null;
+						b.DeclaringMethod is null;
 				break;
 
 			case ElementType.MVar:
 				result = b.IsGenericParameter &&
 						b.GenericParameterPosition == (a as GenericSig).Number &&
-						(object)b.DeclaringMethod != null;
+						b.DeclaringMethod is not null;
 				break;
 
 			case ElementType.GenericInst:
-				if (!(b.IsGenericType && !b.IsGenericTypeDefinition) && !treatAsGenericInst) {
+				if (!(b.IsGenericType && !b.IsGenericTypeDefinition) && !treatAsGenericInst2) {
 					result = false;
 					break;
 				}
 				var gia = (GenericInstSig)a;
-				if (SubstituteGenericParameters) {
-					InitializeGenericArguments();
-					genericArguments.PushTypeArgs(gia.GenericArguments);
-					result = Equals(gia.GenericType, b.GetGenericTypeDefinition());
-					genericArguments.PopTypeArgs();
-				}
-				else
-					result = Equals(gia.GenericType, b.GetGenericTypeDefinition());
-				result = result && Equals(gia.GenericArguments, b.GetGenericArguments());
+				result = Equals(gia.GenericType, b.GetGenericTypeDefinition(), null, false);
+				result = result && Equals(gia.GenericArguments, b.GetGenericArguments(), declaringType);
 				break;
 
 			case ElementType.CModReqd:
 			case ElementType.CModOpt:
-				result = Equals(a.Next, b, treatAsGenericInst);
+				result = Equals(a.Next, b, declaringType);
 				break;
 
 			case ElementType.FnPtr:
@@ -3476,9 +3467,9 @@ exit: ;
 		public bool Equals(ExportedType a, Type b) {
 			// Global methods and fields have their DeclaringType set to null. Assume
 			// null always means the global type.
-			if (a == null)
+			if (a is null)
 				return false;
-			if ((object)b == null)
+			if (b is null)
 				return false;	// Must use a ModuleRef to reference the global type, so always fail
 			if (!recursionCounter.Increment())
 				return false;
@@ -3494,17 +3485,17 @@ exit: ;
 
 			if (!b.IsTypeDef())
 				result = false;
-			else if (!Equals_TypeNames(a.TypeName, b.Name) || !Equals_TypeNamespaces(a.TypeNamespace, b))
+			else if (!Equals_TypeNames(a.TypeName, ReflectionExtensions.Unescape(b.Name)) || !Equals_TypeNamespaces(a.TypeNamespace, b))
 				result = false;
-			else if ((dta = scope as ExportedType) != null)	// nested type
+			else if ((dta = scope as ExportedType) is not null)	// nested type
 				result = Equals(dta, b.DeclaringType);	// Compare enclosing types
 			else if (b.IsNested)
 				result = false;	// b is nested, a isn't
 			else if (DontCompareTypeScope)
 				result = true;
-			else if ((aFile = scope as FileDef) != null)
+			else if ((aFile = scope as FileDef) is not null)
 				result = Equals(b, aFile, a);
-			else if ((aAsm = scope as AssemblyRef) != null)
+			else if ((aAsm = scope as AssemblyRef) is not null)
 				result = Equals(b.Assembly, aAsm, a);
 			else
 				result = false;
@@ -3527,17 +3518,20 @@ exit: ;
 		/// <param name="treatAsGenericInst"><c>true</c> if we should treat <paramref name="a"/>
 		/// as a generic instance type</param>
 		/// <returns>The hash code</returns>
-		public int GetHashCode(Type a, bool treatAsGenericInst) {
+		public int GetHashCode(Type a, bool treatAsGenericInst) => GetHashCode(a, null, treatAsGenericInst);
+
+		int GetHashCode(Type a, Type declaringType, bool? treatAsGenericInst = null) {
 			// **************************************************************************
 			// IMPORTANT: This hash code must match the TypeSig/TypeDef/TypeRef hash code
 			// **************************************************************************
-			if ((object)a == null)	// Could be global type
+			if (a is null)	// Could be global type
 				return GetHashCode_TypeDef(a);
 			if (!recursionCounter.Increment())
 				return 0;
 			int hash;
 
-			switch (treatAsGenericInst ? ElementType.GenericInst : a.GetElementType2()) {
+			bool treatAsGenericInst2 = treatAsGenericInst ?? declaringType.MustTreatTypeAsGenericInstType(a);
+			switch (treatAsGenericInst2 ? ElementType.GenericInst : a.GetElementType2()) {
 			case ElementType.Void:
 			case ElementType.Boolean:
 			case ElementType.Char:
@@ -3571,30 +3565,30 @@ exit: ;
 
 			case ElementType.Ptr:
 				hash = HASHCODE_MAGIC_ET_PTR +
-					(IsFnPtrElementType(a) ? GetHashCode_FnPtr_SystemIntPtr() : GetHashCode(a.GetElementType()));
+					(IsFnPtrElementType(a) ? GetHashCode_FnPtr_SystemIntPtr() : GetHashCode(a.GetElementType(), declaringType));
 				break;
 
 			case ElementType.ByRef:
 				hash = HASHCODE_MAGIC_ET_BYREF +
-					(IsFnPtrElementType(a) ? GetHashCode_FnPtr_SystemIntPtr() : GetHashCode(a.GetElementType()));
+					(IsFnPtrElementType(a) ? GetHashCode_FnPtr_SystemIntPtr() : GetHashCode(a.GetElementType(), declaringType));
 				break;
 
 			case ElementType.SZArray:
 				hash = HASHCODE_MAGIC_ET_SZARRAY +
-					(IsFnPtrElementType(a) ? GetHashCode_FnPtr_SystemIntPtr() : GetHashCode(a.GetElementType()));
+					(IsFnPtrElementType(a) ? GetHashCode_FnPtr_SystemIntPtr() : GetHashCode(a.GetElementType(), declaringType));
 				break;
 
 			case ElementType.CModReqd:
 			case ElementType.CModOpt:
 			case ElementType.Pinned:
-				hash = GetHashCode(a.GetElementType());
+				hash = GetHashCode(a.GetElementType(), declaringType);
 				break;
 
 			case ElementType.Array:
 				// The type doesn't store sizes and lower bounds, so can't use them to
 				// create the hash
 				hash = HASHCODE_MAGIC_ET_ARRAY + a.GetArrayRank() +
-					(IsFnPtrElementType(a) ? GetHashCode_FnPtr_SystemIntPtr() : GetHashCode(a.GetElementType()));
+					(IsFnPtrElementType(a) ? GetHashCode_FnPtr_SystemIntPtr() : GetHashCode(a.GetElementType(), declaringType));
 				break;
 
 			case ElementType.Var:
@@ -3606,7 +3600,8 @@ exit: ;
 				break;
 
 			case ElementType.GenericInst:
-				hash = HASHCODE_MAGIC_ET_GENERICINST + GetHashCode(a.GetGenericTypeDefinition()) + GetHashCode(a.GetGenericArguments());
+				hash = HASHCODE_MAGIC_ET_GENERICINST + GetHashCode(a.GetGenericTypeDefinition(), false) +
+					GetHashCode(a.GetGenericArguments(), declaringType);
 				break;
 
 			case ElementType.ValueArray:
@@ -3627,18 +3622,20 @@ exit: ;
 		/// Gets the hash code of a type list
 		/// </summary>
 		/// <param name="a">The type list</param>
+		/// <param name="declaringType">Root declaring type to check if we should
+		/// treat <paramref name="a"/> as a generic instance type</param>
 		/// <returns>The hash code</returns>
-		int GetHashCode(IList<Type> a) {
+		int GetHashCode(IList<Type> a, Type declaringType) {
 			//************************************************************************
 			// IMPORTANT: This code must match any other GetHashCode(IList<SOME_TYPE>)
 			//************************************************************************
-			if (a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
 			uint hash = 0;
 			for (int i = 0; i < a.Count; i++) {
-				hash += (uint)GetHashCode(a[i]);
+				hash += (uint)GetHashCode(a[i], declaringType);
 				hash = (hash << 13) | (hash >> 19);
 			}
 			recursionCounter.Decrement();
@@ -3677,10 +3674,10 @@ exit: ;
 
 			// A global method/field's declaring type is null. This is the reason we must
 			// return GetHashCodeGlobalType() here.
-			if ((object)a == null)
+			if (a is null)
 				return GetHashCodeGlobalType();
 			int hash;
-			hash = GetHashCode_TypeName(a.Name);
+			hash = GetHashCode_TypeName(ReflectionExtensions.Unescape(a.Name));
 			if (a.IsNested)
 				hash += HASHCODE_MAGIC_NESTED_TYPE;
 			else
@@ -3693,11 +3690,13 @@ exit: ;
 		/// </summary>
 		/// <param name="a">Type list #1</param>
 		/// <param name="b">Type list #2</param>
+		/// <param name="declaringType">Root declaring type to check if we should
+		/// treat <paramref name="b"/> as a generic instance type</param>
 		/// <returns><c>true</c> if same, <c>false</c> otherwise</returns>
-		bool Equals(IList<TypeSig> a, IList<Type> b) {
+		bool Equals(IList<TypeSig> a, IList<Type> b, Type declaringType) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -3708,7 +3707,7 @@ exit: ;
 			else {
 				int i;
 				for (i = 0; i < a.Count; i++) {
-					if (!Equals(a[i], b[i]))
+					if (!Equals(a[i], b[i], declaringType))
 						break;
 				}
 				result = i == a.Count;
@@ -3727,7 +3726,7 @@ exit: ;
 		bool Equals(ModuleDef a, Module b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || (object)b == null)
+			if (a is null || b is null)
 				return false;
 			if (!MscorlibIsNotSpecial && IsCorLib(a) && IsCorLib(b))
 				return true;
@@ -3749,7 +3748,7 @@ exit: ;
 		bool Equals(FileDef a, Module b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || (object)b == null)
+			if (a is null || b is null)
 				return false;
 
 			// Use b.Name since it's the filename we want to compare, not b.ScopeName
@@ -3765,7 +3764,7 @@ exit: ;
 		bool Equals(IModule a, Module b) {
 			if ((object)a == b)
 				return true;
-			if (a == null || (object)b == null)
+			if (a is null || b is null)
 				return false;
 			if (!MscorlibIsNotSpecial && IsCorLib(a) && IsCorLib(b))
 				return true;
@@ -3783,7 +3782,7 @@ exit: ;
 		bool Equals(IAssembly a, Assembly b) {
 			if ((object)a == b)
 				return true;
-			if (a == null || (object)b == null)
+			if (a is null || b is null)
 				return false;
 			if (!MscorlibIsNotSpecial && IsCorLib(a) && IsCorLib(b))
 				return true;
@@ -3813,7 +3812,7 @@ exit: ;
 
 			if ((object)a == b)
 				return true;
-			if (a == null || (object)b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -3823,11 +3822,11 @@ exit: ;
 			MemberRef mr;
 			MethodSpec ms;
 
-			if ((md = a as MethodDef) != null)
+			if ((md = a as MethodDef) is not null)
 				result = DeclaringTypeEquals(md, b);
-			else if ((mr = a as MemberRef) != null)
+			else if ((mr = a as MemberRef) is not null)
 				result = DeclaringTypeEquals(mr, b);
-			else if ((ms = a as MethodSpec) != null)
+			else if ((ms = a as MethodSpec) is not null)
 				result = DeclaringTypeEquals(ms, b);
 			else
 				result = false;
@@ -3842,7 +3841,7 @@ exit: ;
 				return true;
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || (object)b == null)
+			if (a is null || b is null)
 				return false;
 			return Equals(a.DeclaringType, b.DeclaringType);
 		}
@@ -3853,7 +3852,7 @@ exit: ;
 				return true;
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || (object)b == null)
+			if (a is null || b is null)
 				return false;
 			return Equals(a.Class, b.DeclaringType, b.Module);
 		}
@@ -3864,7 +3863,7 @@ exit: ;
 				return true;
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || (object)b == null)
+			if (a is null || b is null)
 				return false;
 			return DeclaringTypeEquals(a.Method, b);
 		}
@@ -3886,7 +3885,7 @@ exit: ;
 		public bool Equals(IMethod a, MethodBase b) {
 			if ((object)a == b)
 				return true;
-			if (a == null || (object)b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -3896,11 +3895,11 @@ exit: ;
 			MemberRef mr;
 			MethodSpec ms;
 
-			if ((md = a as MethodDef) != null)
+			if ((md = a as MethodDef) is not null)
 				result = Equals(md, b);
-			else if ((mr = a as MemberRef) != null)
+			else if ((mr = a as MemberRef) is not null)
 				result = Equals(mr, b);
-			else if ((ms = a as MethodSpec) != null)
+			else if ((ms = a as MethodSpec) is not null)
 				result = Equals(ms, b);
 			else
 				result = false;
@@ -3926,7 +3925,7 @@ exit: ;
 		public bool Equals(MethodDef a, MethodBase b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || (object)b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -3934,7 +3933,7 @@ exit: ;
 			bool result;
 			if (!DontProjectWinMDRefs) {
 				var mra = WinMDHelpers.ToCLR(a.Module ?? sourceModule, a);
-				if (mra != null) {
+				if (mra is not null) {
 					result = Equals(mra, b);
 					goto exit;
 				}
@@ -3942,7 +3941,7 @@ exit: ;
 
 			var amSig = a.MethodSig;
 			result = Equals_MethodFieldNames(a.Name, b.Name) &&
-					amSig != null &&
+					amSig is not null &&
 					((amSig.Generic && b.IsGenericMethodDefinition && b.IsGenericMethod) ||
 					(!amSig.Generic && !b.IsGenericMethodDefinition && !b.IsGenericMethod)) &&
 					Equals(amSig, b) &&
@@ -3970,11 +3969,17 @@ exit: ;
 		public bool Equals(MethodSig a, MethodBase b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || (object)b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
 
+			if (!CompareMethodFieldDeclaringType && b.DeclaringType.IsGenericButNotGenericTypeDefinition()) {
+				var t = b;
+				b = b.Module.ResolveMethod(b.MetadataToken);
+				if (b.IsGenericButNotGenericMethodDefinition())
+					b = ((MethodInfo)b).MakeGenericMethod(t.GetGenericArguments());
+			}
 			bool result = Equals(a.GetCallingConvention(), b) &&
 					(DontCompareReturnType || ReturnTypeEquals(a.RetType, b)) &&
 					Equals(a.Params, b.GetParameters(), b.DeclaringType) &&
@@ -4001,7 +4006,7 @@ exit: ;
 		public bool Equals(MemberRef a, MethodBase b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || (object)b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -4015,6 +4020,7 @@ exit: ;
 				result = a.IsMethodRef && a.MethodSig.Generic;
 
 				var oldOptions = ClearOptions(SigComparerOptions.CompareMethodFieldDeclaringType);
+				SetOptions(SigComparerOptions_DontSubstituteGenericParameters);
 				result = result && Equals(a, b.Module.ResolveMethod(b.MetadataToken));
 				RestoreOptions(oldOptions);
 				result = result && DeclaringTypeEquals(a, b);
@@ -4024,12 +4030,12 @@ exit: ;
 			else {
 				var amSig = a.MethodSig;
 				result = Equals_MethodFieldNames(a.Name, b.Name) &&
-						amSig != null &&
+						amSig is not null &&
 						((amSig.Generic && b.IsGenericMethodDefinition && b.IsGenericMethod) ||
 						(!amSig.Generic && !b.IsGenericMethodDefinition && !b.IsGenericMethod));
 
 				GenericInstSig git;
-				if (SubstituteGenericParameters && (git = GetGenericInstanceType(a.Class)) != null) {
+				if (CompareMethodFieldDeclaringType && !DontSubstituteGenericParameters && (git = GetGenericInstanceType(a.Class)) is not null) {
 					InitializeGenericArguments();
 					genericArguments.PushTypeArgs(git.GenericArguments);
 					result = result && Equals(amSig, b);
@@ -4065,7 +4071,7 @@ exit: ;
 		bool Equals(IMemberRefParent a, Type b, Module bModule) {
 			// Global methods and fields have their DeclaringType set to null. Assume
 			// null always means the global type.
-			if (a == null)
+			if (a is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -4076,17 +4082,17 @@ exit: ;
 			MethodDef ma;
 			TypeDef td;
 
-			if ((ita = a as ITypeDefOrRef) != null)
+			if ((ita = a as ITypeDefOrRef) is not null)
 				result = Equals((IType)ita, b);
-			else if ((moda = a as ModuleRef) != null) {
+			else if ((moda = a as ModuleRef) is not null) {
 				var omoda = moda.Module;
-				result = (object)b == null &&	// b == null => it's the global type
+				result = b is null &&	// b is null => it's the global type
 						Equals(moda, bModule) &&
 						Equals(omoda?.Assembly, bModule.Assembly);
 			}
-			else if ((ma = a as MethodDef) != null)
+			else if ((ma = a as MethodDef) is not null)
 				result = Equals(ma.DeclaringType, b);
-			else if ((object)b == null && (td = a as TypeDef) != null)
+			else if (b is null && (td = a as TypeDef) is not null)
 				result = td.IsGlobalModuleType;
 			else
 				result = false;
@@ -4112,7 +4118,7 @@ exit: ;
 		public bool Equals(MethodSpec a, MethodBase b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || (object)b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -4124,12 +4130,13 @@ exit: ;
 			// declaring type (its declaring type is a generic type def).
 			// NOTE: We must not push generic method args when comparing a.Method
 			var oldOptions = ClearOptions(SigComparerOptions.CompareMethodFieldDeclaringType);
+			SetOptions(SigComparerOptions_DontSubstituteGenericParameters);
 			result = result && Equals(a.Method, b.Module.ResolveMethod(b.MetadataToken));
 			RestoreOptions(oldOptions);
 			result = result && DeclaringTypeEquals(a.Method, b);
 
 			var gim = a.GenericInstMethodSig;
-			result = result && gim != null && Equals(gim.GenericArguments, b.GetGenericArguments());
+			result = result && gim is not null && Equals(gim.GenericArguments, b.GetGenericArguments(), b.DeclaringType);
 
 			recursionCounter.Decrement();
 			return result;
@@ -4141,7 +4148,7 @@ exit: ;
 		/// <param name="a">The <c>MethodBase</c></param>
 		/// <returns>The hash code</returns>
 		public int GetHashCode(MethodBase a) {
-			if ((object)a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
@@ -4159,12 +4166,18 @@ exit: ;
 		}
 
 		int GetHashCode_MethodSig(MethodBase a) {
-			if ((object)a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
 			int hash;
 
+			if (!CompareMethodFieldDeclaringType && a.DeclaringType.IsGenericButNotGenericTypeDefinition()) {
+				var t = a;
+				a = a.Module.ResolveMethod(a.MetadataToken);
+				if (t.IsGenericButNotGenericMethodDefinition())
+					a = ((MethodInfo)a).MakeGenericMethod(t.GetGenericArguments());
+			}
 			hash = GetHashCode_CallingConvention(a.CallingConvention, a.IsGenericMethod) +
 					GetHashCode(a.GetParameters(), a.DeclaringType);
 			if (!DontCompareReturnType)
@@ -4186,7 +4199,7 @@ exit: ;
 			//************************************************************************
 			// IMPORTANT: This code must match any other GetHashCode(IList<SOME_TYPE>)
 			//************************************************************************
-			if (a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
@@ -4201,13 +4214,12 @@ exit: ;
 
 		int GetHashCode_ReturnType(MethodBase a) {
 			var mi = a as MethodInfo;
-			if ((object)mi != null)
+			if (mi is not null)
 				return GetHashCode(mi.ReturnParameter, a.DeclaringType);
 			return GetHashCode(typeof(void));
 		}
 
-		int GetHashCode(ParameterInfo a, Type declaringType) => GetHashCode(a.ParameterType, declaringType.MustTreatTypeAsGenericInstType(a.ParameterType));
-		int GetHashCode(Type a, Type declaringType) => GetHashCode(a, declaringType.MustTreatTypeAsGenericInstType(a));
+		int GetHashCode(ParameterInfo a, Type declaringType) => GetHashCode(a.ParameterType, declaringType);
 
 		/// <summary>
 		/// Compares calling conventions
@@ -4271,14 +4283,14 @@ exit: ;
 		bool ReturnTypeEquals(TypeSig a, MethodBase b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || (object)b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
 
 			bool result;
 			var mi = b as MethodInfo;
-			if ((object)mi != null)
+			if (mi is not null)
 				result = Equals(a, mi.ReturnParameter, b.DeclaringType);
 			else if (b is ConstructorInfo)
 				result = IsSystemVoid(a);
@@ -4301,7 +4313,7 @@ exit: ;
 		bool Equals(IList<TypeSig> a, IList<ParameterInfo> b, Type declaringType) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -4332,13 +4344,13 @@ exit: ;
 		bool Equals(TypeSig a, ParameterInfo b, Type declaringType) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || (object)b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
 
 			bool result = ModifiersEquals(a, b.GetRequiredCustomModifiers(), b.GetOptionalCustomModifiers(), out var a2) &&
-						Equals(a2, b.ParameterType, declaringType.MustTreatTypeAsGenericInstType(b.ParameterType));
+						Equals(a2, b.ParameterType, declaringType);
 
 			recursionCounter.Decrement();
 			return result;
@@ -4356,7 +4368,7 @@ exit: ;
 			var optMods1 = new List<ITypeDefOrRef>(optMods2.Count);
 			while (true) {
 				var modifierSig = aAfterModifiers as ModifierSig;
-				if (modifierSig == null)
+				if (modifierSig is null)
 					break;
 				if (modifierSig is CModOptSig)
 					optMods1.Add(modifierSig.Modifier);
@@ -4382,7 +4394,7 @@ exit: ;
 		bool ModifiersEquals(IList<ITypeDefOrRef> a, IList<Type> b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -4420,7 +4432,7 @@ exit: ;
 		public bool Equals(IField a, FieldInfo b) {
 			if ((object)a == b)
 				return true;
-			if (a == null || (object)b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -4429,9 +4441,9 @@ exit: ;
 			FieldDef fa;
 			MemberRef ma;
 
-			if ((fa = a as FieldDef) != null)
+			if ((fa = a as FieldDef) is not null)
 				result = Equals(fa, b);
-			else if ((ma = a as MemberRef) != null)
+			else if ((ma = a as MemberRef) is not null)
 				result = Equals(ma, b);
 			else
 				result = false;
@@ -4457,7 +4469,7 @@ exit: ;
 		public bool Equals(FieldDef a, FieldInfo b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || (object)b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -4473,13 +4485,15 @@ exit: ;
 		bool Equals(FieldSig a, FieldInfo b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || (object)b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
 
+			if (!CompareMethodFieldDeclaringType && b.DeclaringType.IsGenericButNotGenericTypeDefinition())
+				b = b.Module.ResolveField(b.MetadataToken);
 			bool result = ModifiersEquals(a.Type, b.GetRequiredCustomModifiers(), b.GetOptionalCustomModifiers(), out var a2) &&
-					Equals(a2, b.FieldType, b.DeclaringType.MustTreatTypeAsGenericInstType(b.FieldType));
+					Equals(a2, b.FieldType, b.DeclaringType);
 
 			recursionCounter.Decrement();
 			return result;
@@ -4502,7 +4516,7 @@ exit: ;
 		public bool Equals(MemberRef a, FieldInfo b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || (object)b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -4510,7 +4524,7 @@ exit: ;
 			bool result = Equals_MethodFieldNames(a.Name, b.Name);
 
 			GenericInstSig git;
-			if (SubstituteGenericParameters && (git = GetGenericInstanceType(a.Class)) != null) {
+			if (CompareMethodFieldDeclaringType && !DontSubstituteGenericParameters && (git = GetGenericInstanceType(a.Class)) is not null) {
 				InitializeGenericArguments();
 				genericArguments.PushTypeArgs(git.GenericArguments);
 				result = result && Equals(a.FieldSig, b);
@@ -4534,7 +4548,7 @@ exit: ;
 			// ************************************************************
 			// IMPORTANT: This hash code must match the MemberRef hash code
 			// ************************************************************
-			if ((object)a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
@@ -4549,12 +4563,14 @@ exit: ;
 		}
 
 		int GetHashCode_FieldSig(FieldInfo a) {
-			if ((object)a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
 			int hash;
 
+			if (!CompareMethodFieldDeclaringType && a.DeclaringType.IsGenericButNotGenericTypeDefinition())
+				a = a.Module.ResolveField(a.MetadataToken);
 			hash = GetHashCode_CallingConvention(0, false) + GetHashCode(a.FieldType, a.DeclaringType);
 
 			recursionCounter.Decrement();
@@ -4570,7 +4586,7 @@ exit: ;
 		public bool Equals(PropertyDef a, PropertyInfo b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || (object)b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
@@ -4586,13 +4602,13 @@ exit: ;
 		bool Equals(PropertySig a, PropertyInfo b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || (object)b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
 
 			bool result = ModifiersEquals(a.RetType, b.GetRequiredCustomModifiers(), b.GetOptionalCustomModifiers(), out var a2) &&
-					Equals(a2, b.PropertyType, b.DeclaringType.MustTreatTypeAsGenericInstType(b.PropertyType));
+					Equals(a2, b.PropertyType, b.DeclaringType);
 
 			recursionCounter.Decrement();
 			return result;
@@ -4607,7 +4623,7 @@ exit: ;
 			// **************************************************************
 			// IMPORTANT: This hash code must match the PropertyDef hash code
 			// **************************************************************
-			if ((object)a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;
@@ -4630,13 +4646,13 @@ exit: ;
 		public bool Equals(EventDef a, EventInfo b) {
 			if ((object)a == (object)b)
 				return true;	// both are null
-			if (a == null || (object)b == null)
+			if (a is null || b is null)
 				return false;
 			if (!recursionCounter.Increment())
 				return false;
 
 			bool result = Equals_EventNames(a.Name, b.Name) &&
-					Equals(a.EventType, b.EventHandlerType, b.DeclaringType.MustTreatTypeAsGenericInstType(b.EventHandlerType)) &&
+					Equals(a.EventType, b.EventHandlerType, b.DeclaringType) &&
 					(!CompareEventDeclaringType || Equals(a.DeclaringType, b.DeclaringType));
 
 			recursionCounter.Decrement();
@@ -4652,7 +4668,7 @@ exit: ;
 			// ***********************************************************
 			// IMPORTANT: This hash code must match the EventDef hash code
 			// ***********************************************************
-			if ((object)a == null)
+			if (a is null)
 				return 0;
 			if (!recursionCounter.Increment())
 				return 0;

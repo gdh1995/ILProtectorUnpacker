@@ -1,5 +1,4 @@
-﻿using System;
-using System.IO;
+using System;
 using dnlib.DotNet;
 using dnlib.DotNet.MD;
 using dnlib.DotNet.Writer;

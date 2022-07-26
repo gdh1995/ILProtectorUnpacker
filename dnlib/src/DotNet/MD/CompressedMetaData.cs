@@ -10,29 +10,34 @@ namespace dnlib.DotNet.MD {
 	/// Used when a #~ stream is present in the metadata
 	/// </summary>
 	sealed class CompressedMetadata : MetadataBase {
+		readonly CLRRuntimeReaderKind runtime;
+
 		/// <inheritdoc/>
 		public override bool IsCompressed => true;
 
 		/// <inheritdoc/>
-		public CompressedMetadata(IPEImage peImage, ImageCor20Header cor20Header, MetadataHeader mdHeader)
+		public CompressedMetadata(IPEImage peImage, ImageCor20Header cor20Header, MetadataHeader mdHeader, CLRRuntimeReaderKind runtime)
 			: base(peImage, cor20Header, mdHeader) {
+			this.runtime = runtime;
 		}
 
 		/// <inheritdoc/>
-		internal CompressedMetadata(MetadataHeader mdHeader, bool isStandalonePortablePdb)
+		internal CompressedMetadata(MetadataHeader mdHeader, bool isStandalonePortablePdb, CLRRuntimeReaderKind runtime)
 			: base(mdHeader, isStandalonePortablePdb) {
+			this.runtime = runtime;
 		}
 
 		/// <inheritdoc/>
 		protected override void InitializeInternal(DataReaderFactory mdReaderFactory, uint metadataBaseOffset) {
 			DotNetStream dns = null;
 			var newAllStreams = new List<DotNetStream>(allStreams);
+			bool forceAllBig = false;
 			try {
 				for (int i = mdHeader.StreamHeaders.Count - 1; i >= 0; i--) {
 					var sh = mdHeader.StreamHeaders[i];
 					switch (sh.Name) {
 					case "#Strings":
-						if (stringsStream == null) {
+						if (stringsStream is null) {
 							stringsStream = new StringsStream(mdReaderFactory, metadataBaseOffset, sh);
 							newAllStreams.Add(stringsStream);
 							continue;
@@ -40,7 +45,7 @@ namespace dnlib.DotNet.MD {
 						break;
 
 					case "#US":
-						if (usStream == null) {
+						if (usStream is null) {
 							usStream = new USStream(mdReaderFactory, metadataBaseOffset, sh);
 							newAllStreams.Add(usStream);
 							continue;
@@ -48,7 +53,7 @@ namespace dnlib.DotNet.MD {
 						break;
 
 					case "#Blob":
-						if (blobStream == null) {
+						if (blobStream is null) {
 							blobStream = new BlobStream(mdReaderFactory, metadataBaseOffset, sh);
 							newAllStreams.Add(blobStream);
 							continue;
@@ -56,7 +61,7 @@ namespace dnlib.DotNet.MD {
 						break;
 
 					case "#GUID":
-						if (guidStream == null) {
+						if (guidStream is null) {
 							guidStream = new GuidStream(mdReaderFactory, metadataBaseOffset, sh);
 							newAllStreams.Add(guidStream);
 							continue;
@@ -64,17 +69,24 @@ namespace dnlib.DotNet.MD {
 						break;
 
 					case "#~":
-						if (tablesStream == null) {
-							tablesStream = new TablesStream(mdReaderFactory, metadataBaseOffset, sh);
+						if (tablesStream is null) {
+							tablesStream = new TablesStream(mdReaderFactory, metadataBaseOffset, sh, runtime);
 							newAllStreams.Add(tablesStream);
 							continue;
 						}
 						break;
 
 					case "#Pdb":
-						if (isStandalonePortablePdb && pdbStream == null) {
+						if (isStandalonePortablePdb && pdbStream is null) {
 							pdbStream = new PdbStream(mdReaderFactory, metadataBaseOffset, sh);
-							allStreams.Add(pdbStream);
+							newAllStreams.Add(pdbStream);
+							continue;
+						}
+						break;
+
+					case "#JTD":
+						if (runtime == CLRRuntimeReaderKind.Mono) {
+							forceAllBig = true;
 							continue;
 						}
 						break;
@@ -90,13 +102,13 @@ namespace dnlib.DotNet.MD {
 				allStreams = newAllStreams;
 			}
 
-			if (tablesStream == null)
+			if (tablesStream is null)
 				throw new BadImageFormatException("Missing MD stream");
 
-			if (pdbStream != null)
-				tablesStream.Initialize(pdbStream.TypeSystemTableRows);
+			if (pdbStream is not null)
+				tablesStream.Initialize(pdbStream.TypeSystemTableRows, forceAllBig);
 			else
-				tablesStream.Initialize(null);
+				tablesStream.Initialize(null, forceAllBig);
 		}
 
 		/// <inheritdoc/>
@@ -114,6 +126,12 @@ namespace dnlib.DotNet.MD {
 		/// <inheritdoc/>
 		public override RidList GetPropertyRidList(uint propertyMapRid) => GetRidList(tablesStream.PropertyMapTable, propertyMapRid, 1, tablesStream.PropertyTable);
 
+		/// <inheritdoc/>
+		public override RidList GetLocalVariableRidList(uint localScopeRid) => GetRidList(tablesStream.LocalScopeTable, localScopeRid, 2, tablesStream.LocalVariableTable);
+
+		/// <inheritdoc/>
+		public override RidList GetLocalConstantRidList(uint localScopeRid) => GetRidList(tablesStream.LocalScopeTable, localScopeRid, 3, tablesStream.LocalConstantTable);
+
 		/// <summary>
 		/// Gets a rid list (eg. field list)
 		/// </summary>
@@ -130,7 +148,7 @@ namespace dnlib.DotNet.MD {
 			uint lastRid = tableDest.Rows + 1;
 			if (startRid == 0 || startRid >= lastRid)
 				return RidList.Empty;
-			uint endRid = hasNext ? nextListRid : lastRid;
+			uint endRid = !hasNext || (nextListRid == 0 && tableSourceRid + 1 == tableSource.Rows && tableDest.Rows == 0xFFFF) ? lastRid : nextListRid;
 			if (endRid < startRid)
 				endRid = startRid;
 			if (endRid > lastRid)

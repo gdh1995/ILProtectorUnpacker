@@ -1,4 +1,4 @@
-﻿// dnlib: See LICENSE.txt for more info
+// dnlib: See LICENSE.txt for more info
 
 using System;
 using System.Collections.Generic;
@@ -333,6 +333,20 @@ namespace dnlib.DotNet.MD {
 		/// <param name="methodRid">Owner <c>Method</c> rid</param>
 		/// <returns>A <see cref="RidList"/> instance containing the valid <c>LocalScope</c> rids</returns>
 		public abstract RidList GetLocalScopeRidList(uint methodRid);
+
+		/// <summary>
+		/// Finds all <c>LocalVariable</c> rids owned by <paramref name="localScopeRid"/>
+		/// </summary>
+		/// <param name="localScopeRid">Owner <c>LocalScope</c> rid</param>
+		/// <returns>A <see cref="RidList"/> instance containing the valid <c>LocalVariable</c> rids</returns>
+		public abstract RidList GetLocalVariableRidList(uint localScopeRid);
+
+		/// <summary>
+		/// Finds all <c>LocalConstant</c> rids owned by <paramref name="localScopeRid"/>
+		/// </summary>
+		/// <param name="localScopeRid">Owner <c>LocalScope</c> rid</param>
+		/// <returns>A <see cref="RidList"/> instance containing the valid <c>LocalConstant</c> rids</returns>
+		public abstract RidList GetLocalConstantRidList(uint localScopeRid);
 
 		/// <summary>
 		/// Gets the <c>StateMachineMethod</c> rid or 0 if it's not a state machine method

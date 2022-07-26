@@ -1,6 +1,6 @@
 // dnlib: See LICENSE.txt for more info
 
-﻿using dnlib.IO;
+using dnlib.IO;
 
 namespace dnlib.DotNet.MD {
 	/// <summary>
@@ -28,7 +28,7 @@ namespace dnlib.DotNet.MD {
 			var reader = dataReader;
 			reader.Position = offset;
 			data = reader.TryReadBytesUntil(0);
-			if (data == null)
+			if (data is null)
 				return null;
 			return new UTF8String(data);
 		}

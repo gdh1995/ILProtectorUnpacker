@@ -1,4 +1,4 @@
-﻿// dnlib: See LICENSE.txt for more info
+// dnlib: See LICENSE.txt for more info
 
 using System.Collections.Generic;
 
@@ -24,7 +24,7 @@ namespace dnlib.DotNet {
 		public string TypeFullName {
 			get {
 				var at = attrType;
-				return at == null ? string.Empty : at.FullName;
+				return at is null ? string.Empty : at.FullName;
 			}
 		}
 

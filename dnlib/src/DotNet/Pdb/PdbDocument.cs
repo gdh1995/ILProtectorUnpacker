@@ -1,4 +1,4 @@
-﻿// dnlib: See LICENSE.txt for more info
+// dnlib: See LICENSE.txt for more info
 
 using System;
 using System.Collections.Generic;
@@ -67,7 +67,7 @@ namespace dnlib.DotNet.Pdb {
 		}
 
 		PdbDocument(SymbolDocument symDoc, bool partial) {
-			if (symDoc == null)
+			if (symDoc is null)
 				throw new ArgumentNullException(nameof(symDoc));
 			Url = symDoc.URL;
 			if (!partial)
@@ -112,7 +112,7 @@ namespace dnlib.DotNet.Pdb {
 		/// <inheritdoc/>
 		public override bool Equals(object obj) {
 			var other = obj as PdbDocument;
-			if (other == null)
+			if (other is null)
 				return false;
 			return StringComparer.OrdinalIgnoreCase.Equals(Url ?? string.Empty, other.Url ?? string.Empty);
 		}

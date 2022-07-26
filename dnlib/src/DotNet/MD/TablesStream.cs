@@ -22,6 +22,7 @@ namespace dnlib.DotNet.MD {
 
 		IColumnReader columnReader;
 		IRowReader<RawMethodRow> methodRowReader;
+		readonly CLRRuntimeReaderKind runtime;
 
 #pragma warning disable 1591	// XML doc comment
 		public MDTable ModuleTable { get; private set; }
@@ -154,33 +155,58 @@ namespace dnlib.DotNet.MD {
 		/// <summary>
 		/// Gets the <see cref="MDStreamFlags.Padding"/> bit
 		/// </summary>
-		public bool HasPadding => (flags & MDStreamFlags.Padding) != 0;
+		public bool HasPadding => runtime == CLRRuntimeReaderKind.CLR && (flags & MDStreamFlags.Padding) != 0;
 
 		/// <summary>
 		/// Gets the <see cref="MDStreamFlags.DeltaOnly"/> bit
 		/// </summary>
-		public bool HasDeltaOnly => (flags & MDStreamFlags.DeltaOnly) != 0;
+		public bool HasDeltaOnly => runtime == CLRRuntimeReaderKind.CLR && (flags & MDStreamFlags.DeltaOnly) != 0;
 
 		/// <summary>
 		/// Gets the <see cref="MDStreamFlags.ExtraData"/> bit
 		/// </summary>
-		public bool HasExtraData => (flags & MDStreamFlags.ExtraData) != 0;
+		public bool HasExtraData => runtime == CLRRuntimeReaderKind.CLR && (flags & MDStreamFlags.ExtraData) != 0;
 
 		/// <summary>
 		/// Gets the <see cref="MDStreamFlags.HasDelete"/> bit
 		/// </summary>
-		public bool HasDelete => (flags & MDStreamFlags.HasDelete) != 0;
+		public bool HasDelete => runtime == CLRRuntimeReaderKind.CLR && (flags & MDStreamFlags.HasDelete) != 0;
 
-		/// <inheritdoc/>
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="mdReaderFactory"><see cref="DataReader"/> factory</param>
+		/// <param name="metadataBaseOffset">Offset of metadata</param>
+		/// <param name="streamHeader">Stream header</param>
 		public TablesStream(DataReaderFactory mdReaderFactory, uint metadataBaseOffset, StreamHeader streamHeader)
+			: this(mdReaderFactory, metadataBaseOffset, streamHeader, CLRRuntimeReaderKind.CLR) {
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="mdReaderFactory"><see cref="DataReader"/> factory</param>
+		/// <param name="metadataBaseOffset">Offset of metadata</param>
+		/// <param name="streamHeader">Stream header</param>
+		/// <param name="runtime">Runtime kind</param>
+		public TablesStream(DataReaderFactory mdReaderFactory, uint metadataBaseOffset, StreamHeader streamHeader, CLRRuntimeReaderKind runtime)
 			: base(mdReaderFactory, metadataBaseOffset, streamHeader) {
+			this.runtime = runtime;
 		}
 
 		/// <summary>
 		/// Initializes MD tables
 		/// </summary>
 		/// <param name="typeSystemTableRows">Type system table rows (from #Pdb stream)</param>
-		public void Initialize(uint[] typeSystemTableRows) {
+		public void Initialize(uint[] typeSystemTableRows) =>
+			Initialize(typeSystemTableRows, false);
+
+		/// <summary>
+		/// Initializes MD tables
+		/// </summary>
+		/// <param name="typeSystemTableRows">Type system table rows (from #Pdb stream)</param>
+		/// <param name="forceAllBig">Force all columns to 4 bytes instead of 2 or 4 bytes</param>
+		internal void Initialize(uint[] typeSystemTableRows, bool forceAllBig) {
 			if (initialized)
 				throw new Exception("Initialize() has already been called");
 			initialized = true;
@@ -193,10 +219,19 @@ namespace dnlib.DotNet.MD {
 			log2Rid = reader.ReadByte();
 			validMask = reader.ReadUInt64();
 			sortedMask = reader.ReadUInt64();
+			// Mono assumes everything is sorted
+			if (runtime == CLRRuntimeReaderKind.Mono)
+				sortedMask = ulong.MaxValue;
 
 			var dnTableSizes = new DotNetTableSizes();
-			var tableInfos = dnTableSizes.CreateTables(majorVersion, minorVersion, out int maxPresentTables);
-			if (typeSystemTableRows != null)
+			byte tmpMajor = majorVersion, tmpMinor = minorVersion;
+			// It ignores the version so use 2.0
+			if (runtime == CLRRuntimeReaderKind.Mono) {
+				tmpMajor = 2;
+				tmpMinor = 0;
+			}
+			var tableInfos = dnTableSizes.CreateTables(tmpMajor, tmpMinor, out int maxPresentTables);
+			if (typeSystemTableRows is not null)
 				maxPresentTables = DotNetTableSizes.normalMaxTables;
 			mdTables = new MDTable[tableInfos.Length];
 
@@ -217,7 +252,7 @@ namespace dnlib.DotNet.MD {
 				extraData = reader.ReadUInt32();
 
 			var debugSizes = sizes;
-			if (typeSystemTableRows != null) {
+			if (typeSystemTableRows is not null) {
 				debugSizes = new uint[sizes.Length];
 				for (int i = 0; i < 64; i++) {
 					if (DotNetTableSizes.IsSystemTable((Table)i))
@@ -227,7 +262,7 @@ namespace dnlib.DotNet.MD {
 				}
 			}
 
-			dnTableSizes.InitializeSizes(HasBigStrings, HasBigGUID, HasBigBlob, sizes, debugSizes);
+			dnTableSizes.InitializeSizes(HasBigStrings, HasBigGUID, HasBigBlob, sizes, debugSizes, forceAllBig);
 
 			mdTablesPos = reader.Position;
 			InitializeMdTableReaders();
@@ -243,6 +278,10 @@ namespace dnlib.DotNet.MD {
 			var currentPos = reader.Position;
 			foreach (var mdTable in mdTables) {
 				var dataLen = (uint)mdTable.TableInfo.RowSize * mdTable.Rows;
+				if (currentPos > reader.Length)
+					currentPos = reader.Length;
+				if ((ulong)currentPos + dataLen > reader.Length)
+					dataLen = reader.Length - currentPos;
 				mdTable.DataReader = reader.Slice(currentPos, dataLen);
 				var newPos = currentPos + dataLen;
 				if (newPos < currentPos)
@@ -311,9 +350,9 @@ namespace dnlib.DotNet.MD {
 		protected override void Dispose(bool disposing) {
 			if (disposing) {
 				var mt = mdTables;
-				if (mt != null) {
+				if (mt is not null) {
 					foreach (var mdTable in mt) {
-						if (mdTable != null)
+						if (mdTable is not null)
 							mdTable.Dispose();
 					}
 					mdTables = null;

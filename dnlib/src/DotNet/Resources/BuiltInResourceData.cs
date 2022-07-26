@@ -1,4 +1,4 @@
-﻿// dnlib: See LICENSE.txt for more info
+// dnlib: See LICENSE.txt for more info
 
 using System;
 using System.IO;
@@ -146,7 +146,7 @@ namespace dnlib.DotNet.Resources {
 			case ResourceTypeCode.ByteArray:
 			case ResourceTypeCode.Stream:
 				var ary = data as byte[];
-				if (ary != null)
+				if (ary is not null)
 					return $"{code}: Length: {ary.Length}";
 				return $"{code}: '{data}'";
 

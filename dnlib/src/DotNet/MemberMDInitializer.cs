@@ -1,4 +1,4 @@
-﻿// dnlib: See LICENSE.txt for more info
+// dnlib: See LICENSE.txt for more info
 
 using System.Collections.Generic;
 
@@ -13,7 +13,7 @@ namespace dnlib.DotNet {
 		/// <typeparam name="T">Collection element type</typeparam>
 		/// <param name="coll">Collection</param>
 		public static void Initialize<T>(IEnumerable<T> coll) {
-			if (coll == null)
+			if (coll is null)
 				return;
 			foreach (var c in coll) {
 			}

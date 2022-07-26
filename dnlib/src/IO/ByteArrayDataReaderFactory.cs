@@ -1,4 +1,4 @@
-﻿// dnlib: See LICENSE.txt for more info
+// dnlib: See LICENSE.txt for more info
 
 using System;
 
@@ -39,7 +39,7 @@ namespace dnlib.IO {
 		/// <param name="filename">The filename or null if the data is not from a file</param>
 		/// <returns></returns>
 		public static ByteArrayDataReaderFactory Create(byte[] data, string filename) {
-			if (data == null)
+			if (data is null)
 				throw new ArgumentNullException(nameof(data));
 			return new ByteArrayDataReaderFactory(data, filename);
 		}

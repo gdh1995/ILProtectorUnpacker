@@ -1,4 +1,4 @@
-﻿// dnlib: See LICENSE.txt for more info
+// dnlib: See LICENSE.txt for more info
 
 using System;
 using dnlib.IO;
@@ -9,7 +9,7 @@ namespace dnlib.DotNet.Pdb {
 		readonly IPEImage peImage;
 		readonly ImageDebugDirectory codeViewDebugDir;
 
-		public bool HasDebugInfo => codeViewDebugDir != null;
+		public bool HasDebugInfo => codeViewDebugDir is not null;
 		public ImageDebugDirectory CodeViewDebugDirectory => codeViewDebugDir;
 		public PdbReaderOptions Options { get; }
 
@@ -48,19 +48,19 @@ namespace dnlib.DotNet.Pdb {
 			guid = reader.ReadGuid();
 			age = reader.ReadUInt32();
 			pdbFilename = reader.TryReadZeroTerminatedUtf8String();
-			return pdbFilename != null;
+			return pdbFilename is not null;
 		}
 
 		DataReader GetCodeViewDataReader() {
-			if (codeViewDebugDir == null)
+			if (codeViewDebugDir is null)
 				return default;
-			return CreateReader(codeViewDebugDir.PointerToRawData, codeViewDebugDir.SizeOfData);
+			return CreateReader(codeViewDebugDir.AddressOfRawData, codeViewDebugDir.SizeOfData);
 		}
 
-		public DataReader CreateReader(FileOffset offset, uint size) {
-			if (offset == 0 || size == 0)
+		public DataReader CreateReader(RVA rva, uint size) {
+			if (rva == 0 || size == 0)
 				return default;
-			var reader = peImage.CreateReader(offset, size);
+			var reader = peImage.CreateReader(rva, size);
 			if (reader.Length != size)
 				return default;
 			return reader;

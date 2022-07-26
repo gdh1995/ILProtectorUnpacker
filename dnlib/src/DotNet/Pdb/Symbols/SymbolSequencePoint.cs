@@ -1,4 +1,4 @@
-﻿// dnlib: See LICENSE.txt for more info
+// dnlib: See LICENSE.txt for more info
 
 using System.Diagnostics;
 using System.Text;
@@ -39,7 +39,7 @@ namespace dnlib.DotNet.Pdb.Symbols {
 		/// </summary>
 		public int EndColumn;
 
-		string GetDebuggerString() {
+		readonly string GetDebuggerString() {
 			var sb = new StringBuilder();
 			if (Line == 0xFEEFEE && EndLine == 0xFEEFEE)
 				sb.Append("<hidden>");

@@ -1,4 +1,4 @@
-﻿// dnlib: See LICENSE.txt for more info
+// dnlib: See LICENSE.txt for more info
 
 using System;
 using System.Text;
@@ -21,7 +21,7 @@ namespace dnlib.DotNet.Pdb.Portable {
 
 		void Write(DataWriter writer, TypeSig type, object value) {
 			for (; ; type = type.Next) {
-				if (type == null)
+				if (type is null)
 					return;
 
 				var et = type.ElementType;
@@ -59,7 +59,7 @@ namespace dnlib.DotNet.Pdb.Portable {
 					return;
 
 				case ElementType.String:
-					if (value == null)
+					if (value is null)
 						writer.WriteByte((byte)0xFF);
 					else if (value is string)
 						writer.WriteBytes(Encoding.Unicode.GetBytes((string)value));
@@ -78,8 +78,8 @@ namespace dnlib.DotNet.Pdb.Portable {
 				case ElementType.ValueType:
 					var tdr = ((ValueTypeSig)type).TypeDefOrRef;
 					var td = tdr.ResolveTypeDef();
-					if (td == null)
-						helper.Error($"Couldn't resolve type 0x{tdr?.MDToken.Raw ?? 0:X8}");
+					if (td is null)
+						helper.Error2("Couldn't resolve type 0x{0:X8}.", tdr?.MDToken.Raw ?? 0);
 					else if (td.IsEnum) {
 						var underlyingType = td.GetEnumUnderlyingType().RemovePinnedAndModifiers();
 						switch (underlyingType.GetElementType()) {
@@ -134,8 +134,8 @@ namespace dnlib.DotNet.Pdb.Portable {
 						if (!valueWritten) {
 							if (value is byte[])
 								writer.WriteBytes((byte[])value);
-							else if (value != null) {
-								helper.Error("Unsupported constant: " + value.GetType().FullName);
+							else if (value is not null) {
+								helper.Error2("Unsupported constant: {0}.", value.GetType().FullName);
 								return;
 							}
 						}
@@ -146,7 +146,7 @@ namespace dnlib.DotNet.Pdb.Portable {
 					WriteTypeDefOrRef(writer, ((ClassSig)type).TypeDefOrRef);
 					if (value is byte[])
 						writer.WriteBytes((byte[])value);
-					else if (value != null)
+					else if (value is not null)
 						helper.Error("Expected a null constant");
 					return;
 
@@ -176,7 +176,7 @@ namespace dnlib.DotNet.Pdb.Portable {
 				case ElementType.Sentinel:
 				case ElementType.Pinned:
 				default:
-					helper.Error("Unsupported element type in LocalConstant sig blob: " + et.ToString());
+					helper.Error2("Unsupported element type in LocalConstant sig blob: {0}.", et);
 					return;
 				}
 			}

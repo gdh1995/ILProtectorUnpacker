@@ -1,4 +1,4 @@
-﻿// dnlib: See LICENSE.txt for more info
+// dnlib: See LICENSE.txt for more info
 
 using System;
 using System.Collections.Generic;
@@ -101,6 +101,16 @@ namespace dnlib.DotNet.Pdb {
 		/// <see cref="PdbIteratorMethodCustomDebugInfo"/>
 		/// </summary>
 		IteratorMethod,
+
+		/// <summary>
+		/// <see cref="PdbCompilationMetadataReferencesCustomDebugInfo"/>
+		/// </summary>
+		CompilationMetadataReferences,
+
+		/// <summary>
+		/// <see cref="PdbCompilationOptionsCustomDebugInfo"/>
+		/// </summary>
+		CompilationOptions,
 	}
 
 	/// <summary>
@@ -279,7 +289,7 @@ namespace dnlib.DotNet.Pdb {
 		/// <summary>
 		/// true if it's a syntesized local (<see cref="Start"/> and <see cref="End"/> are both null)
 		/// </summary>
-		public bool IsSynthesizedLocal => Start == null && End == null;
+		public readonly bool IsSynthesizedLocal => Start is null && End is null;
 
 		/// <summary>
 		/// The instruction of the first operation in the scope. Can be null if it's a synthesized local
@@ -421,7 +431,7 @@ namespace dnlib.DotNet.Pdb {
 		public string Name {
 			get {
 				var n = name;
-				if (n != null)
+				if (n is not null)
 					return n;
 				return local?.Name;
 			}
@@ -431,12 +441,12 @@ namespace dnlib.DotNet.Pdb {
 		/// <summary>
 		/// true if it's a constant and not a variable (<see cref="Local"/> is null)
 		/// </summary>
-		public bool IsConstant => Local == null;
+		public bool IsConstant => Local is null;
 
 		/// <summary>
 		/// true if it's a variable (<see cref="Local"/> is not null)
 		/// </summary>
-		public bool IsVariable => Local != null;
+		public bool IsVariable => Local is not null;
 
 		/// <summary>
 		/// Gets/sets the local. Could be null if there's no local (it's a 'const' local).
@@ -562,7 +572,7 @@ namespace dnlib.DotNet.Pdb {
 		public string Name {
 			get {
 				var n = name;
-				if (n != null)
+				if (n is not null)
 					return n;
 				return local?.Name;
 			}
@@ -580,12 +590,12 @@ namespace dnlib.DotNet.Pdb {
 		/// <summary>
 		/// true if it's a constant. Constants have a scope (<see cref="ScopeStart"/> and <see cref="ScopeEnd"/>)
 		/// </summary>
-		public bool IsConstant => local == null;
+		public bool IsConstant => local is null;
 
 		/// <summary>
 		/// true if it's a variable. Variables don't have a scope (<see cref="ScopeStart"/> and <see cref="ScopeEnd"/>)
 		/// </summary>
-		public bool IsVariable => local != null;
+		public bool IsVariable => local is not null;
 
 		/// <summary>
 		/// Gets/sets the start of the scope or null. Only constants have a scope.
@@ -957,5 +967,138 @@ namespace dnlib.DotNet.Pdb {
 		/// </summary>
 		/// <param name="kickoffMethod">Kickoff method</param>
 		public PdbIteratorMethodCustomDebugInfo(MethodDef kickoffMethod) => KickoffMethod = kickoffMethod;
+	}
+
+	/// <summary>
+	/// Compilation metadata references
+	/// </summary>
+	public sealed class PdbCompilationMetadataReferencesCustomDebugInfo : PdbCustomDebugInfo {
+		/// <summary>
+		/// Returns <see cref="PdbCustomDebugInfoKind.CompilationMetadataReferences"/>
+		/// </summary>
+		public override PdbCustomDebugInfoKind Kind => PdbCustomDebugInfoKind.CompilationMetadataReferences;
+
+		/// <summary>
+		/// Gets the custom debug info guid, see <see cref="CustomDebugInfoGuids"/>
+		/// </summary>
+		public override Guid Guid => CustomDebugInfoGuids.CompilationMetadataReferences;
+
+		/// <summary>
+		/// Gets all references
+		/// </summary>
+		public List<PdbCompilationMetadataReference> References { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public PdbCompilationMetadataReferencesCustomDebugInfo() => References = new List<PdbCompilationMetadataReference>();
+	}
+
+	/// <summary>
+	/// Compilation metadata reference flags, see https://github.com/dotnet/roslyn/blob/master/docs/features/pdb-compilation-options.md
+	/// </summary>
+	[Flags]
+	public enum PdbCompilationMetadataReferenceFlags : byte {
+		/// <summary>
+		/// No bit is set
+		/// </summary>
+		None					= 0,
+
+		/// <summary>
+		/// Set if it's an assembly reference, clear if it's a module reference
+		/// </summary>
+		Assembly				= 0x01,
+
+		/// <summary>
+		/// EmbedInteropTypes was enabled
+		/// </summary>
+		EmbedInteropTypes		= 0x02,
+	}
+
+	/// <summary>
+	/// A compilation metadata reference
+	/// </summary>
+	public sealed class PdbCompilationMetadataReference {
+		/// <summary>
+		/// Name of the reference (eg. filename)
+		/// </summary>
+		public string Name { get; set; }
+
+		/// <summary>
+		/// Aliases (or an empty string), separated with commas
+		/// </summary>
+		public string Aliases { get; set; }
+
+		/// <summary>
+		/// Gets the flags
+		/// </summary>
+		public PdbCompilationMetadataReferenceFlags Flags { get; set; }
+
+		/// <summary>
+		/// Gets the timestamp stored in the PE header
+		/// </summary>
+		public uint Timestamp { get; set; }
+
+		/// <summary>
+		/// Gets SizeOfImage stored in the PE header
+		/// </summary>
+		public uint SizeOfImage { get; set; }
+
+		/// <summary>
+		/// Gets the MVID stored in the .NET metadata
+		/// </summary>
+		public Guid Mvid { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public PdbCompilationMetadataReference() {
+			Name = string.Empty;
+			Aliases = string.Empty;
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="name">Name of reference</param>
+		/// <param name="aliases">Aliases (or an empty string), separated with commas</param>
+		/// <param name="flags">Reference flags</param>
+		/// <param name="timestamp">Timestamp in PE header</param>
+		/// <param name="sizeOfImage">SizeOfImage in PE header</param>
+		/// <param name="mvid">MVID stored in the .NET metadata</param>
+		public PdbCompilationMetadataReference(string name, string aliases, PdbCompilationMetadataReferenceFlags flags, uint timestamp, uint sizeOfImage, Guid mvid) {
+			Name = name;
+			Aliases = aliases;
+			Flags = flags;
+			Timestamp = timestamp;
+			SizeOfImage = sizeOfImage;
+			Mvid = mvid;
+		}
+	}
+
+	/// <summary>
+	/// Compilation options
+	/// </summary>
+	public sealed class PdbCompilationOptionsCustomDebugInfo : PdbCustomDebugInfo {
+		/// <summary>
+		/// Returns <see cref="PdbCustomDebugInfoKind.CompilationOptions"/>
+		/// </summary>
+		public override PdbCustomDebugInfoKind Kind => PdbCustomDebugInfoKind.CompilationOptions;
+
+		/// <summary>
+		/// Gets the custom debug info guid, see <see cref="CustomDebugInfoGuids"/>
+		/// </summary>
+		public override Guid Guid => CustomDebugInfoGuids.CompilationOptions;
+
+		/// <summary>
+		/// Gets all compilation options, see https://github.com/dotnet/roslyn/blob/master/docs/features/pdb-compilation-options.md .
+		/// Option names (key): see roslyn/src/Compilers/Core/Portable/PEWriter/CompilationOptionNames.cs
+		/// </summary>
+		public List<KeyValuePair<string, string>> Options { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public PdbCompilationOptionsCustomDebugInfo() => Options = new List<KeyValuePair<string, string>>();
 	}
 }

@@ -1,4 +1,4 @@
-﻿// dnlib: See LICENSE.txt for more info
+// dnlib: See LICENSE.txt for more info
 
 using System;
 using System.Collections;
@@ -221,6 +221,9 @@ namespace dnlib.DotNet.Pdb.Managed {
 
 		ushort? ReadModules() {
 			ref var stream = ref streams[STREAM_DBI].Content;
+			modules = new List<DbiModule>();
+			if (stream.Length == 0)
+				return null;
 			stream.Position = 20;
 			ushort symrecStream = stream.ReadUInt16();
 			stream.Position += 2;
@@ -235,7 +238,6 @@ namespace dnlib.DotNet.Pdb.Managed {
 			otherSize += ReadSizeField(ref stream); // ecinfoSize
 			stream.Position += 8;
 
-			modules = new List<DbiModule>();
 			var moduleStream = stream.Slice(stream.Position, gpmodiSize);
 			while (moduleStream.Position < moduleStream.Length) {
 				var module = new DbiModule();
@@ -315,6 +317,8 @@ namespace dnlib.DotNet.Pdb.Managed {
 		internal static string ReadCString(ref DataReader reader) => reader.TryReadZeroTerminatedUtf8String() ?? string.Empty;
 
 		public override SymbolMethod GetMethod(MethodDef method, int version) {
+			if (version != 1)
+				return null;
 			if (functions.TryGetValue(method.MDToken.ToInt32(), out var symMethod))
 				return symMethod;
 			return null;
@@ -322,7 +326,7 @@ namespace dnlib.DotNet.Pdb.Managed {
 
 		public override IList<SymbolDocument> Documents {
 			get {
-				if (documentsResult == null) {
+				if (documentsResult is null) {
 					var docs = new SymbolDocument[documents.Count];
 					int i = 0;
 					foreach (var kv in documents)
@@ -339,11 +343,11 @@ namespace dnlib.DotNet.Pdb.Managed {
 		internal void GetCustomDebugInfos(DbiFunction symMethod, MethodDef method, CilBody body, IList<PdbCustomDebugInfo> result) {
 			const string CDI_NAME = "MD2";
 			var asyncMethod = PseudoCustomDebugInfoFactory.TryCreateAsyncMethod(method.Module, method, body, symMethod.AsyncKickoffMethod, symMethod.AsyncStepInfos, symMethod.AsyncCatchHandlerILOffset);
-			if (asyncMethod != null)
+			if (asyncMethod is not null)
 				result.Add(asyncMethod);
 
 			var cdiData = symMethod.Root.GetSymAttribute(CDI_NAME);
-			if (cdiData == null)
+			if (cdiData is null)
 				return;
 			PdbCustomDebugInfoReader.Read(method, body, result, cdiData);
 		}
@@ -354,9 +358,9 @@ namespace dnlib.DotNet.Pdb.Managed {
 		}
 
 		void GetCustomDebugInfos_ModuleDef(IList<PdbCustomDebugInfo> result) {
-			if (sourcelinkData != null)
+			if (sourcelinkData is not null)
 				result.Add(new PdbSourceLinkCustomDebugInfo(sourcelinkData));
-			if (srcsrvData != null)
+			if (srcsrvData is not null)
 				result.Add(new PdbSourceServerCustomDebugInfo(srcsrvData));
 		}
 	}
