@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using System.Threading.Tasks;
 using dnlib.DotNet;
 using dnlib.DotNet.Emit;
 using MonoMod.Utils;
@@ -25,8 +26,8 @@ namespace ILProtectorUnpacker
         public static StackFrame[] MainFrames;
         public static List<TypeDef> JunkType = new List<TypeDef>();
 
-        private static int _totalPackedMethods;
-        private static int _totalUnpackedMethods;
+        private static volatile int _totalPackedMethods;
+        private static volatile int _totalUnpackedMethods;
 
         private static void Main(string[] args)
         {
@@ -47,7 +48,8 @@ namespace ILProtectorUnpacker
                 Console.WriteLine("[?] Enter Your Program Path : ");
                 Console.ForegroundColor = ConsoleColor.Red;
 
-                var path = Console.ReadLine();
+                // var path = Console.ReadLine();
+                var path = "";
 
                 if (string.IsNullOrEmpty(path))
                 {
@@ -134,6 +136,7 @@ namespace ILProtectorUnpacker
                 if (method == null)
                     Console.WriteLine("[!] Couldn't find InvokeMethod");
 
+                //list = list.Take(0).ToArray().ToList();
                 InvokeDelegates(list, method, fieldValue);
                 Console.ForegroundColor = ConsoleColor.Red;
 
@@ -149,7 +152,7 @@ namespace ILProtectorUnpacker
                     CleanAssembly();
                 }
 
-                AssemblyWriter.Save();
+                AssemblyWriter.Save(_totalUnpackedMethods);
                 Console.ForegroundColor = ConsoleColor.Blue;
                 Console.WriteLine($"[!] Total packed methods:   {_totalPackedMethods}");
                 Console.WriteLine($"[!] Total unpacked methods: {_totalUnpackedMethods}");
@@ -168,7 +171,7 @@ namespace ILProtectorUnpacker
         private static void InvokeDelegates(IList<TypeDef> typeDefs, MethodInfo invokeMethod, object invokeField)
         {
             var methodDefs = typeDefs.SelectMany(x => x.Methods).Where(x =>
-                x.Module.Name == Assembly.ManifestModule.ScopeName && x.HasBody && 
+                x.Module.Name == Assembly.ManifestModule.ScopeName && x.HasBody &&
                 x.Body.Instructions.Count > 2 &&
                 x.Body.Instructions[0].OpCode == OpCodes.Ldsfld &&
                 x.Body.Instructions[0].Operand.ToString().Contains("Invoke") && 
@@ -176,50 +179,67 @@ namespace ILProtectorUnpacker
             var start = DateTime.Now;
             var lastLog = -99;
             var lastTotalPacked = 0;
+            object timerObject = new object();
             Console.ForegroundColor = ConsoleColor.Gray;
             Console.WriteLine($"[info] Found {methodDefs.Count()} packed methods");
-            foreach (var methodDef in methodDefs)
+
+            var methodSubList = methodDefs.Skip(0);
+            // methodDefItor = methodDefItor.Skip(4067).Take(1);
+            var options = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount };
+            ParallelLoopResult? parallelResult = null;
+            // not needed: both take 90 seconds for 8646 items
+            // parallelResult = Parallel.ForEach(methodSubList.AsParallel().AsOrdered(), options, (MethodDef methodDef) =>
+            Array.ForEach(methodSubList.ToArray(), (MethodDef methodDef) =>
             {
-                _totalPackedMethods++;
-                var now = DateTime.Now;
-                var timeDelta = now - start;
-                var seconds = timeDelta.TotalSeconds;
-                if (seconds < 0)
+                string logMsg = null;
+                lock (timerObject)
                 {
-                    start = now;
-                    lastLog = -99;
-                    timeDelta = now - start;
-                    seconds = 0;
-                }
-                if (seconds - lastLog >= 10)
-                {
-                    lastLog = (int)Math.Floor(seconds);
-                    if (_totalPackedMethods > 1)
+                    _totalPackedMethods++;
+                    var now = DateTime.Now;
+                    var timeDelta = now - start;
+                    var seconds = timeDelta.TotalSeconds;
+                    if (seconds < 0)
                     {
-                        timeDelta = new TimeSpan(0, 0, lastLog);
-                        lastTotalPacked = _totalPackedMethods;
-                        var msg = $"unpacked {_totalUnpackedMethods} in {_totalPackedMethods - 1}";
-                        Console.ForegroundColor = ConsoleColor.Gray;
-                        Console.WriteLine($"[{timeDelta:c}] {msg}");
+                        start = now;
+                        lastLog = -99;
+                        timeDelta = now - start;
+                        seconds = 0;
+                    }
+                    int isec = (int)Math.Floor(seconds);
+                    if ((isec / 10) != (lastLog / 10))
+                    {
+                        lastLog = isec;
+                        if (_totalPackedMethods > 1)
+                        {
+                            timeDelta = new TimeSpan(0, 0, lastLog);
+                            lastTotalPacked = _totalPackedMethods;
+                            logMsg = $"[{timeDelta:c}] unpacked {_totalUnpackedMethods} in {_totalPackedMethods - 1}";
+                        }
                     }
                 }
-
-                CurrentMethod = methodDef;
-                CurrentMethodBase = Assembly.ManifestModule.ResolveMethod(methodDef.MDToken.ToInt32());
+                if (logMsg != null)
+                    LogMsg(ConsoleColor.Gray, logMsg);
 
                 var mdToken = ((IType) methodDef.Body.Instructions[3].Operand).MDToken.ToInt32();
                 var oldType = methodDef.DeclaringType.NestedTypes.FirstOrDefault(net => net.MDToken.ToInt32() == mdToken);
                 if (oldType != null)
                     JunkType.Add(oldType);
                 var index = methodDef.Body.Instructions[1].GetLdcI4Value();
-                if (index == IgnoreIndex) continue;
+                if (index == IgnoreIndex) return;
 
-                var method = invokeMethod.Invoke(invokeField, new object[] {index});
-                if (method == null)
+                object method;
+                lock (invokeMethod)
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"Can not find the packed method body of #{index} {CurrentMethod.FullName}");
-                    continue;
+                    CurrentMethod = methodDef;
+                    CurrentMethodBase = Assembly.ManifestModule.ResolveMethod(methodDef.MDToken.ToInt32());
+                    method = invokeMethod.Invoke(invokeField, new object[] { index });
+                    CurrentMethod = null;
+                    CurrentMethodBase = null;
+                    if (method == null)
+                    {
+                        LogMsg(ConsoleColor.Red, $"Can not find the packed method body of #{index} {methodDef.FullName}");
+                        return;
+                    }
                 }
 
                 try
@@ -228,19 +248,16 @@ namespace ILProtectorUnpacker
                     dynamicMethodBodyReader.Read();
                     var unpackedMethod = dynamicMethodBodyReader.GetMethod();
                     AssemblyWriter.WriteMethod(methodDef, unpackedMethod);
-                    _totalUnpackedMethods++;
+                    Interlocked.Increment(ref _totalUnpackedMethods);
                 }
                 catch (Exception ex)
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"[Error] #{_totalPackedMethods} in Read(): "
+                    LogMsg(ConsoleColor.Red, $"[Error] #{index} in Read(): "
                         + ex.Message + "\n- Method: " + method + "\n" + ex.StackTrace);
                 }
-                finally
-                {
-                    CurrentMethod = null;
-                }
-            }
+            });
+            if (parallelResult?.IsCompleted == false)
+                Console.WriteLine("Error: Some methods were not be replaced!");
             {
                 var msg = $"unpacked {_totalUnpackedMethods} in {_totalPackedMethods}";
                 var timeDelta = DateTime.Now - start;
@@ -249,6 +266,15 @@ namespace ILProtectorUnpacker
                 timeDelta = new TimeSpan(0, 0, lastLog);
                 Console.ForegroundColor = ConsoleColor.Gray;
                 Console.WriteLine($"[{timeDelta:c}] {msg}");
+            }
+        }
+
+        private static void LogMsg(ConsoleColor fgColor, string msg)
+        {
+            lock (typeof(Console))
+            {
+                Console.ForegroundColor = fgColor;
+                Console.WriteLine(msg);
             }
         }
 
@@ -262,9 +288,9 @@ namespace ILProtectorUnpacker
                 if (mDef.HasBody)
                 {
                     foreach (var instr in mDef.Body.Instructions
-                        .Where(x => x.OpCode == OpCodes.Call)
-                        .Where(x => x.Operand is MethodDef)
-                        .Where(x => ((MethodDef)x.Operand).FullName.Contains(globalType.Name)))
+                                 .Where(x => x.OpCode == OpCodes.Call)
+                                 .Where(x => x.Operand is MethodDef)
+                                 .Where(x => ((MethodDef)x.Operand).FullName.Contains(globalType.Name)))
                     {
                         methodDefs.Add(instr.Operand as MethodDef);
                         foreach (var mdef in CollectMethodDefsToRemove(globalType, instr.Operand as MethodDef))
@@ -273,6 +299,7 @@ namespace ILProtectorUnpacker
                         }
                     }
                 }
+
                 return methodDefs;
             }
 
@@ -283,10 +310,10 @@ namespace ILProtectorUnpacker
             if (methodDef.HasBody)
             {
                 var startIndex = methodDef.Body.Instructions.IndexOf(methodDef.Body.Instructions.FirstOrDefault(
-                                     inst => inst.OpCode == OpCodes.Call && ((IMethod)inst.Operand).Name == "GetIUnknownForObject")) - 2;
+                    inst => inst.OpCode == OpCodes.Call && ((IMethod)inst.Operand).Name == "GetIUnknownForObject")) - 2;
 
                 var endIndex = methodDef.Body.Instructions.IndexOf(methodDef.Body.Instructions.FirstOrDefault(
-                                   inst => inst.OpCode == OpCodes.Call && ((IMethod)inst.Operand).Name == "Release")) + 2;
+                    inst => inst.OpCode == OpCodes.Call && ((IMethod)inst.Operand).Name == "Release")) + 2;
 
                 methodDef.Body.ExceptionHandlers.Remove(methodDef.Body.ExceptionHandlers.FirstOrDefault(
                     exh => exh.HandlerEnd == methodDef.Body.Instructions[endIndex + 1]));
@@ -300,8 +327,8 @@ namespace ILProtectorUnpacker
             }
 
             foreach (var def in globalType.Methods.Where(met => met.HasImplMap)
-                .Where(met => new[] { "Protect32.dll", "Protect64.dll" }
-                    .Any(x => x == met.ImplMap?.Module.Name.ToString())).ToList())
+                         .Where(met => new[] { "Protect32.dll", "Protect64.dll" }
+                             .Any(x => x == met.ImplMap?.Module.Name.ToString())).ToList())
                 globalType.Remove(def);
 
             var dlls = globalType.Methods.Where(x => x.HasBody && x.Body.HasInstructions)
@@ -317,13 +344,15 @@ namespace ILProtectorUnpacker
             {
                 Console.WriteLine(string.Join(", ", dlls));
 
-                var resourcesToRemove = AssemblyWriter.moduleDef.Resources.Where(x => dlls.Any(d => d == x.Name)).ToList();
+                var resourcesToRemove =
+                    AssemblyWriter.moduleDef.Resources.Where(x => dlls.Any(d => d == x.Name)).ToList();
                 resourcesToRemove.ForEach(res => AssemblyWriter.moduleDef.Resources.Remove(res));
             }
 
             methodDefsToRemove.ForEach(mdef => globalType.Methods.Remove(mdef));
 
-            var fieldDefsToRemove = globalType.Fields.Where(fld => fld.Name == "Invoke" || fld.Name == "String").ToList();
+            var fieldDefsToRemove =
+                globalType.Fields.Where(fld => fld.Name == "Invoke" || fld.Name == "String").ToList();
 
             foreach (var field in fieldDefsToRemove)
             {
@@ -344,6 +373,7 @@ namespace ILProtectorUnpacker
             {
                 return false;
             }
+
             return true;
         }
 
@@ -409,7 +439,7 @@ namespace ILProtectorUnpacker
 
         public MethodBase Hook4(int i)
         {
-            var rgMethodHandle = (IntPtr[]) typeof(StackTrace).Module
+            var rgMethodHandle = (IntPtr[])typeof(StackTrace).Module
                 .GetType("System.Diagnostics.StackFrameHelper")
                 .GetField("rgMethodHandle", BindingFlags.Instance | BindingFlags.NonPublic)
                 ?.GetValue(this);
@@ -418,17 +448,17 @@ namespace ILProtectorUnpacker
 
             var runtimeMethodInfoStub =
                 typeof(StackTrace).Module.GetType("System.RuntimeMethodInfoStub").GetConstructors()[1]
-                    .Invoke(new object[] {methodHandleValue, this});
+                    .Invoke(new object[] { methodHandleValue, this });
 
             var typicalMethodDefinition = typeof(StackTrace).Module.GetType("System.RuntimeMethodHandle")
                 .GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
                 .Where(m => m.Name == "GetTypicalMethodDefinition" && m.GetParameters().Length == 1).ToArray()[0]
-                .Invoke(null, new[] {runtimeMethodInfoStub});
+                .Invoke(null, new[] { runtimeMethodInfoStub });
 
-            var result = (MethodBase) typeof(StackTrace).Module.GetType("System.RuntimeType")
+            var result = (MethodBase)typeof(StackTrace).Module.GetType("System.RuntimeType")
                 .GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
                 .Where(m => m.Name == "GetMethodBase" && m.GetParameters().Length == 1).ToArray()[0]
-                .Invoke(null, new[] {typicalMethodDefinition});
+                .Invoke(null, new[] { typicalMethodDefinition });
 
             if (result.Name == "InvokeMethod")
                 result = Assembly.Modules.FirstOrDefault()?.ResolveMethod(CurrentMethod.MDToken.ToInt32());

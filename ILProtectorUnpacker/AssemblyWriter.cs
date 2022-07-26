@@ -39,12 +39,14 @@ namespace ILProtectorUnpacker
             oldMethodDef.Body = newMethodDef.Body;
         }
 
-        internal void Save()
+        internal void Save(int tick)
         {
             try
             {
-                var filename = Path.GetFileNameWithoutExtension(assemblyPath) + "_Unpacked" + Path.GetExtension(assemblyPath);
+                var filename = Path.GetFileNameWithoutExtension(assemblyPath) + $"_Unpacked-{tick}" + Path.GetExtension(assemblyPath);
                 var filepath = Path.Combine(Path.GetDirectoryName(assemblyPath), filename);
+                if (Directory.Exists("R:\\working"))
+                    filepath = "R:\\working\\" + filename;
                 var options = new ModuleWriterOptions(moduleDef) {Logger = DummyLogger.NoThrowInstance};
                 moduleDef.Write(filepath, options);
             }
